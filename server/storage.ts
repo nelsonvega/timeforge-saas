@@ -1,5 +1,8 @@
 import type {
   User, InsertUser, UpsertUser,
+  Tenant, InsertTenant,
+  Workspace, InsertWorkspace,
+  WorkspaceMembership, InsertWorkspaceMembership,
   Client, InsertClient,
   Project, InsertProject,
   TimeEntry, InsertTimeEntry,
@@ -7,7 +10,8 @@ import type {
 } from "@shared/schema";
 import { db } from "./db";
 import {
-  users, clients, projects, timeEntries, projectAssignments
+  users, tenants, workspaces, workspaceMemberships,
+  clients, projects, timeEntries, projectAssignments
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -29,38 +33,60 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
 
+  // Tenants
+  getTenant(id: string): Promise<Tenant | undefined>;
+  getAllTenants(): Promise<Tenant[]>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined>;
+
+  // Workspaces
+  getWorkspace(id: string): Promise<Workspace | undefined>;
+  getWorkspacesByTenant(tenantId: string): Promise<Workspace[]>;
+  getUserWorkspaces(userId: string): Promise<Workspace[]>;
+  createWorkspace(workspace: InsertWorkspace): Promise<Workspace>;
+  updateWorkspace(id: string, workspace: Partial<InsertWorkspace>): Promise<Workspace | undefined>;
+  deleteWorkspace(id: string): Promise<boolean>;
+
+  // Workspace Memberships
+  getWorkspaceMembership(workspaceId: string, userId: string): Promise<WorkspaceMembership | undefined>;
+  getWorkspaceMemberships(workspaceId: string): Promise<WorkspaceMembership[]>;
+  getUserMemberships(userId: string): Promise<WorkspaceMembership[]>;
+  createWorkspaceMembership(membership: InsertWorkspaceMembership): Promise<WorkspaceMembership>;
+  updateWorkspaceMembership(id: string, membership: Partial<InsertWorkspaceMembership>): Promise<WorkspaceMembership | undefined>;
+  removeWorkspaceMembership(workspaceId: string, userId: string): Promise<boolean>;
+
   // Clients
-  getClient(id: string): Promise<Client | undefined>;
-  getAllClients(): Promise<Client[]>;
+  getClient(workspaceId: string, id: string): Promise<Client | undefined>;
+  getAllClients(workspaceId: string): Promise<Client[]>;
   createClient(client: InsertClient): Promise<Client>;
-  updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
-  deleteClient(id: string): Promise<boolean>;
+  updateClient(workspaceId: string, id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
+  deleteClient(workspaceId: string, id: string): Promise<boolean>;
 
   // Projects
-  getProject(id: string): Promise<Project | undefined>;
-  getAllProjects(): Promise<Project[]>;
-  getProjectsByClient(clientId: string): Promise<Project[]>;
+  getProject(workspaceId: string, id: string): Promise<Project | undefined>;
+  getAllProjects(workspaceId: string): Promise<Project[]>;
+  getProjectsByClient(workspaceId: string, clientId: string): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
-  updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
-  deleteProject(id: string): Promise<boolean>;
+  updateProject(workspaceId: string, id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
+  deleteProject(workspaceId: string, id: string): Promise<boolean>;
 
   // Time Entries
-  getTimeEntry(id: string): Promise<TimeEntry | undefined>;
-  getAllTimeEntries(): Promise<TimeEntry[]>;
-  getTimeEntriesByUser(userId: string): Promise<TimeEntry[]>;
-  getTimeEntriesByProject(projectId: string): Promise<TimeEntry[]>;
+  getTimeEntry(workspaceId: string, id: string): Promise<TimeEntry | undefined>;
+  getAllTimeEntries(workspaceId: string): Promise<TimeEntry[]>;
+  getTimeEntriesByUser(workspaceId: string, userId: string): Promise<TimeEntry[]>;
+  getTimeEntriesByProject(workspaceId: string, projectId: string): Promise<TimeEntry[]>;
   createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry>;
-  updateTimeEntry(id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
-  deleteTimeEntry(id: string): Promise<boolean>;
+  updateTimeEntry(workspaceId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined>;
+  deleteTimeEntry(workspaceId: string, id: string): Promise<boolean>;
 
   // Project Assignments
   assignUserToProject(assignment: InsertProjectAssignment): Promise<ProjectAssignment>;
-  getProjectAssignments(projectId: string): Promise<ProjectAssignment[]>;
-  getUserAssignments(userId: string): Promise<ProjectAssignment[]>;
-  removeUserFromProject(userId: string, projectId: string): Promise<boolean>;
+  getProjectAssignments(workspaceId: string, projectId: string): Promise<ProjectAssignment[]>;
+  getUserAssignments(workspaceId: string, userId: string): Promise<ProjectAssignment[]>;
+  removeUserFromProject(workspaceId: string, userId: string, projectId: string): Promise<boolean>;
 
   // Dashboard
-  getDashboardMetrics(): Promise<DashboardMetrics>;
+  getDashboardMetrics(workspaceId: string): Promise<DashboardMetrics>;
 }
 
 export class DbStorage implements IStorage {
@@ -114,14 +140,121 @@ export class DbStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Clients
-  async getClient(id: string): Promise<Client | undefined> {
-    const result = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  // Tenants
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    const result = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
     return result[0];
   }
 
-  async getAllClients(): Promise<Client[]> {
-    return await db.select().from(clients).orderBy(desc(clients.createdAt));
+  async getAllTenants(): Promise<Tenant[]> {
+    return await db.select().from(tenants).orderBy(desc(tenants.createdAt));
+  }
+
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const result = await db.insert(tenants).values(tenant).returning();
+    return result[0];
+  }
+
+  async updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const result = await db.update(tenants).set(tenant).where(eq(tenants.id, id)).returning();
+    return result[0];
+  }
+
+  // Workspaces
+  async getWorkspace(id: string): Promise<Workspace | undefined> {
+    const result = await db.select().from(workspaces).where(eq(workspaces.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getWorkspacesByTenant(tenantId: string): Promise<Workspace[]> {
+    return await db.select().from(workspaces).where(eq(workspaces.tenantId, tenantId)).orderBy(desc(workspaces.createdAt));
+  }
+
+  async getUserWorkspaces(userId: string): Promise<Workspace[]> {
+    const memberships = await db
+      .select({ workspace: workspaces })
+      .from(workspaceMemberships)
+      .innerJoin(workspaces, eq(workspaceMemberships.workspaceId, workspaces.id))
+      .where(eq(workspaceMemberships.userId, userId))
+      .orderBy(desc(workspaces.createdAt));
+    return memberships.map(m => m.workspace);
+  }
+
+  async createWorkspace(workspace: InsertWorkspace): Promise<Workspace> {
+    const result = await db.insert(workspaces).values(workspace).returning();
+    return result[0];
+  }
+
+  async updateWorkspace(id: string, workspace: Partial<InsertWorkspace>): Promise<Workspace | undefined> {
+    const result = await db.update(workspaces).set(workspace).where(eq(workspaces.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteWorkspace(id: string): Promise<boolean> {
+    const result = await db.delete(workspaces).where(eq(workspaces.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Workspace Memberships
+  async getWorkspaceMembership(workspaceId: string, userId: string): Promise<WorkspaceMembership | undefined> {
+    const result = await db
+      .select()
+      .from(workspaceMemberships)
+      .where(and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async getWorkspaceMemberships(workspaceId: string): Promise<WorkspaceMembership[]> {
+    return await db
+      .select()
+      .from(workspaceMemberships)
+      .where(eq(workspaceMemberships.workspaceId, workspaceId))
+      .orderBy(desc(workspaceMemberships.joinedAt));
+  }
+
+  async getUserMemberships(userId: string): Promise<WorkspaceMembership[]> {
+    return await db
+      .select()
+      .from(workspaceMemberships)
+      .where(eq(workspaceMemberships.userId, userId))
+      .orderBy(desc(workspaceMemberships.joinedAt));
+  }
+
+  async createWorkspaceMembership(membership: InsertWorkspaceMembership): Promise<WorkspaceMembership> {
+    const result = await db.insert(workspaceMemberships).values(membership).returning();
+    return result[0];
+  }
+
+  async updateWorkspaceMembership(id: string, membership: Partial<InsertWorkspaceMembership>): Promise<WorkspaceMembership | undefined> {
+    const result = await db.update(workspaceMemberships).set(membership).where(eq(workspaceMemberships.id, id)).returning();
+    return result[0];
+  }
+
+  async removeWorkspaceMembership(workspaceId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(workspaceMemberships)
+      .where(and(eq(workspaceMemberships.workspaceId, workspaceId), eq(workspaceMemberships.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Clients
+  async getClient(workspaceId: string, id: string): Promise<Client | undefined> {
+    const result = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAllClients(workspaceId: string): Promise<Client[]> {
+    return await db
+      .select()
+      .from(clients)
+      .where(eq(clients.workspaceId, workspaceId))
+      .orderBy(desc(clients.createdAt));
   }
 
   async createClient(client: InsertClient): Promise<Client> {
@@ -129,28 +262,46 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined> {
-    const result = await db.update(clients).set(client).where(eq(clients.id, id)).returning();
+  async updateClient(workspaceId: string, id: string, client: Partial<InsertClient>): Promise<Client | undefined> {
+    const result = await db
+      .update(clients)
+      .set(client)
+      .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+      .returning();
     return result[0];
   }
 
-  async deleteClient(id: string): Promise<boolean> {
-    const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+  async deleteClient(workspaceId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(clients)
+      .where(and(eq(clients.workspaceId, workspaceId), eq(clients.id, id)))
+      .returning();
     return result.length > 0;
   }
 
   // Projects
-  async getProject(id: string): Promise<Project | undefined> {
-    const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  async getProject(workspaceId: string, id: string): Promise<Project | undefined> {
+    const result = await db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+      .limit(1);
     return result[0];
   }
 
-  async getAllProjects(): Promise<Project[]> {
-    return await db.select().from(projects).orderBy(desc(projects.createdAt));
+  async getAllProjects(workspaceId: string): Promise<Project[]> {
+    return await db
+      .select()
+      .from(projects)
+      .where(eq(projects.workspaceId, workspaceId))
+      .orderBy(desc(projects.createdAt));
   }
 
-  async getProjectsByClient(clientId: string): Promise<Project[]> {
-    return await db.select().from(projects).where(eq(projects.clientId, clientId));
+  async getProjectsByClient(workspaceId: string, clientId: string): Promise<Project[]> {
+    return await db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.workspaceId, workspaceId), eq(projects.clientId, clientId)));
   }
 
   async createProject(project: InsertProject): Promise<Project> {
@@ -158,32 +309,55 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined> {
-    const result = await db.update(projects).set(project).where(eq(projects.id, id)).returning();
+  async updateProject(workspaceId: string, id: string, project: Partial<InsertProject>): Promise<Project | undefined> {
+    const result = await db
+      .update(projects)
+      .set(project)
+      .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+      .returning();
     return result[0];
   }
 
-  async deleteProject(id: string): Promise<boolean> {
-    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
+  async deleteProject(workspaceId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(projects)
+      .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, id)))
+      .returning();
     return result.length > 0;
   }
 
   // Time Entries
-  async getTimeEntry(id: string): Promise<TimeEntry | undefined> {
-    const result = await db.select().from(timeEntries).where(eq(timeEntries.id, id)).limit(1);
+  async getTimeEntry(workspaceId: string, id: string): Promise<TimeEntry | undefined> {
+    const result = await db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+      .limit(1);
     return result[0];
   }
 
-  async getAllTimeEntries(): Promise<TimeEntry[]> {
-    return await db.select().from(timeEntries).orderBy(desc(timeEntries.startTime));
+  async getAllTimeEntries(workspaceId: string): Promise<TimeEntry[]> {
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(eq(timeEntries.workspaceId, workspaceId))
+      .orderBy(desc(timeEntries.startTime));
   }
 
-  async getTimeEntriesByUser(userId: string): Promise<TimeEntry[]> {
-    return await db.select().from(timeEntries).where(eq(timeEntries.userId, userId)).orderBy(desc(timeEntries.startTime));
+  async getTimeEntriesByUser(workspaceId: string, userId: string): Promise<TimeEntry[]> {
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.userId, userId)))
+      .orderBy(desc(timeEntries.startTime));
   }
 
-  async getTimeEntriesByProject(projectId: string): Promise<TimeEntry[]> {
-    return await db.select().from(timeEntries).where(eq(timeEntries.projectId, projectId)).orderBy(desc(timeEntries.startTime));
+  async getTimeEntriesByProject(workspaceId: string, projectId: string): Promise<TimeEntry[]> {
+    return await db
+      .select()
+      .from(timeEntries)
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.projectId, projectId)))
+      .orderBy(desc(timeEntries.startTime));
   }
 
   async createTimeEntry(entry: InsertTimeEntry): Promise<TimeEntry> {
@@ -191,13 +365,20 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async updateTimeEntry(id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
-    const result = await db.update(timeEntries).set(entry).where(eq(timeEntries.id, id)).returning();
+  async updateTimeEntry(workspaceId: string, id: string, entry: Partial<InsertTimeEntry>): Promise<TimeEntry | undefined> {
+    const result = await db
+      .update(timeEntries)
+      .set(entry)
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+      .returning();
     return result[0];
   }
 
-  async deleteTimeEntry(id: string): Promise<boolean> {
-    const result = await db.delete(timeEntries).where(eq(timeEntries.id, id)).returning();
+  async deleteTimeEntry(workspaceId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(timeEntries)
+      .where(and(eq(timeEntries.workspaceId, workspaceId), eq(timeEntries.id, id)))
+      .returning();
     return result.length > 0;
   }
 
@@ -207,28 +388,38 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  async getProjectAssignments(projectId: string): Promise<ProjectAssignment[]> {
-    return await db.select().from(projectAssignments).where(eq(projectAssignments.projectId, projectId));
+  async getProjectAssignments(workspaceId: string, projectId: string): Promise<ProjectAssignment[]> {
+    return await db
+      .select()
+      .from(projectAssignments)
+      .where(and(eq(projectAssignments.workspaceId, workspaceId), eq(projectAssignments.projectId, projectId)));
   }
 
-  async getUserAssignments(userId: string): Promise<ProjectAssignment[]> {
-    return await db.select().from(projectAssignments).where(eq(projectAssignments.userId, userId));
+  async getUserAssignments(workspaceId: string, userId: string): Promise<ProjectAssignment[]> {
+    return await db
+      .select()
+      .from(projectAssignments)
+      .where(and(eq(projectAssignments.workspaceId, workspaceId), eq(projectAssignments.userId, userId)));
   }
 
-  async removeUserFromProject(userId: string, projectId: string): Promise<boolean> {
-    const result = await db.delete(projectAssignments).where(
-      and(
-        eq(projectAssignments.userId, userId),
-        eq(projectAssignments.projectId, projectId)
+  async removeUserFromProject(workspaceId: string, userId: string, projectId: string): Promise<boolean> {
+    const result = await db
+      .delete(projectAssignments)
+      .where(
+        and(
+          eq(projectAssignments.workspaceId, workspaceId),
+          eq(projectAssignments.userId, userId),
+          eq(projectAssignments.projectId, projectId)
+        )
       )
-    ).returning();
+      .returning();
     return result.length > 0;
   }
 
   // Dashboard
-  async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const allEntries = await this.getAllTimeEntries();
-    const allProjects = await this.getAllProjects();
+  async getDashboardMetrics(workspaceId: string): Promise<DashboardMetrics> {
+    const allEntries = await this.getAllTimeEntries(workspaceId);
+    const allProjects = await this.getAllProjects(workspaceId);
     
     const totalMinutes = allEntries
       .filter(entry => entry.duration)
