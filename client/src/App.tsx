@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/Dashboard";
 import Tracker from "@/pages/Tracker";
 import Projects from "@/pages/Projects";
@@ -45,7 +46,27 @@ function Router() {
 
 function AppContent() {
   const [location] = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
   const isLoginPage = location === "/login";
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated && !isLoginPage) {
+    return <Redirect to="/login" />;
+  }
+
+  if (isAuthenticated && isLoginPage) {
+    return <Redirect to="/" />;
+  }
 
   const style = {
     "--sidebar-width": "16rem",
