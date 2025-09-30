@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Download, Calendar, Filter, TrendingUp, Clock, DollarSign, Users } from "lucide-react";
+import { ArrowLeft, Download, Calendar as CalendarIcon, Filter, TrendingUp, Clock, DollarSign, Users } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const reportData: Record<string, any> = {
   "1": {
@@ -129,11 +132,25 @@ export default function ReportDetail() {
   const params = useParams();
   const reportId = params.id || "1";
   const report = reportData[reportId];
-  const [dateRange, setDateRange] = useState("30days");
+  const [dateRange, setDateRange] = useState("Last 30 days");
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedProject, setSelectedProject] = useState("All Projects");
   const [selectedClient, setSelectedClient] = useState("All Clients");
   const [selectedMember, setSelectedMember] = useState("All Members");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
+
+  const quickDateOptions = [
+    "Today",
+    "Yesterday",
+    "Current week",
+    "Last 2 weeks",
+    "Current Month",
+    "Last Month",
+    "Last 30 days",
+    "Last 90 days",
+    "This Quarter",
+    "This Year",
+  ];
 
   if (!report) {
     return (
@@ -399,19 +416,44 @@ export default function ReportDetail() {
                   <Label htmlFor="date-range" className="text-xs font-medium text-muted-foreground">
                     Date Range
                   </Label>
-                  <Select value={dateRange} onValueChange={setDateRange}>
-                    <SelectTrigger id="date-range" data-testid="select-date-range">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7days">Last 7 days</SelectItem>
-                      <SelectItem value="30days">Last 30 days</SelectItem>
-                      <SelectItem value="90days">Last 90 days</SelectItem>
-                      <SelectItem value="quarter">This Quarter</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
-                      <SelectItem value="all">All Time</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                        data-testid="button-date-range"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 flex" align="start">
+                      <div className="border-r">
+                        <div className="p-3 space-y-1">
+                          {quickDateOptions.map((option) => (
+                            <button
+                              key={option}
+                              onClick={() => setDateRange(option)}
+                              className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                                dateRange === option
+                                  ? "bg-primary text-primary-foreground"
+                                  : "hover-elevate"
+                              }`}
+                              data-testid={`button-quick-date-${option.toLowerCase().replace(/\s+/g, "-")}`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        className="rounded-md"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
