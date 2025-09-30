@@ -78,16 +78,37 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication and Authorization Mechanisms
 
-**Planned Approach:**
-- Multi-tenant architecture with data segregation at the database level
-- Role-based access control (RBAC) system with roles: Super Admin, Admin, User, Viewer
-- Session-based authentication using connect-pg-simple for PostgreSQL session storage
-- User schema includes username and password fields for credential-based auth
+**Implementation:**
+- Replit Auth with OAuth 2.0 / OpenID Connect (supports Google, GitHub, Apple, X, and email/password)
+- Session-based authentication using Passport.js with openid-client strategy
+- PostgreSQL session store via connect-pg-simple with 7-day session TTL
+- Automatic session refresh with refresh tokens to maintain user sessions
+- Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`
+
+**Database Schema:**
+- `sessions` table for session persistence with expiration index
+- `users` table includes OAuth profile fields: `email`, `firstName`, `lastName`, `profileImageUrl`
+- Legacy fields maintained for backward compatibility: `username`, `password`, `name`, `role`, `hourlyRate`
+- `upsertUser` operation handles OAuth user creation/updates on login
+
+**Frontend Flow:**
+- `useAuth` hook provides `user`, `isLoading`, and `isAuthenticated` state
+- App-level authentication guard in `App.tsx` redirects unauthenticated users to `/login`
+- Loading state displayed during auth check
+- Login page redirects to `/api/login` which triggers OAuth flow
+- After successful auth, user redirected to home page
+
+**Backend Flow:**
+- `server/replitAuth.ts` configures Passport strategies for each Replit domain
+- `isAuthenticated` middleware checks session validity and refreshes tokens if needed
+- `GET /api/auth/user` returns current user profile from database
+- All protected routes return 401 for unauthenticated requests
 
 **Security Considerations:**
-- Environment-based database URL configuration
-- Credential inclusion in API requests for session management
-- 401 handling in query client with configurable behavior (returnNull or throw)
+- Environment-based configuration via `ISSUER_URL`, `REPL_ID`, `SESSION_SECRET`, `DATABASE_URL`
+- Secure cookies with httpOnly, secure flags, and 7-day maxAge
+- Trust proxy enabled for proper secure cookie handling in Replit environment
+- OIDC discovery with memoization (1-hour cache) for performance
 
 ### External Dependencies
 

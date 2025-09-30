@@ -8,8 +8,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Protect all /api routes except auth-related ones
+  app.use('/api', (req, res, next) => {
+    const publicPaths = ['/login', '/callback', '/logout'];
+    if (publicPaths.includes(req.path)) {
+      return next();
+    }
+    return isAuthenticated(req, res, next);
+  });
+
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
