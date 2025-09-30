@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const existingClients = [
   { id: "1", name: "Acme Corporation" },
@@ -60,83 +59,83 @@ export default function NewProject() {
         </div>
       </div>
 
-      <Card className="max-w-2xl">
-        <CardContent className="pt-6 space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              placeholder="Website Redesign, Mobile App..."
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              data-testid="input-project-name"
-            />
-          </div>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="project-name">Project Name</Label>
+          <Input
+            id="project-name"
+            placeholder="Website Redesign, Mobile App..."
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            data-testid="input-project-name"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label>Client</Label>
-            <Tabs defaultValue="existing" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="existing" data-testid="tab-existing-client">
-                  Existing Client
-                </TabsTrigger>
-                <TabsTrigger value="new" data-testid="tab-new-client">
-                  New Client
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="existing" className="mt-3">
-                <Select value={selectedClient} onValueChange={setSelectedClient}>
-                  <SelectTrigger data-testid="select-existing-client">
-                    <SelectValue placeholder="Select a client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {existingClients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TabsContent>
-              <TabsContent value="new" className="mt-3">
-                <Input
-                  placeholder="New client name"
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  data-testid="input-new-client-name"
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
+        <div className="space-y-2">
+          <Label>Client</Label>
+          <Tabs defaultValue="existing" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="existing" data-testid="tab-existing-client">
+                Existing Client
+              </TabsTrigger>
+              <TabsTrigger value="new" data-testid="tab-new-client">
+                New Client
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="existing" className="mt-3">
+              <Select value={selectedClient} onValueChange={setSelectedClient}>
+                <SelectTrigger data-testid="select-existing-client" className="max-w-md">
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {existingClients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+            <TabsContent value="new" className="mt-3">
+              <Input
+                placeholder="New client name"
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                data-testid="input-new-client-name"
+                className="max-w-md"
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="budget">Budget (optional)</Label>
-            <Input
-              id="budget"
-              type="number"
-              placeholder="50000"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              data-testid="input-project-budget"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="budget">Budget (optional)</Label>
+          <Input
+            id="budget"
+            type="number"
+            placeholder="50000"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            data-testid="input-project-budget"
+            className="max-w-md"
+          />
+        </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Link href="/projects">
-              <Button variant="outline" data-testid="button-cancel-project">
-                Cancel
-              </Button>
-            </Link>
-            <Button
-              onClick={handleCreateProject}
-              disabled={!isValid}
-              data-testid="button-create-project"
-            >
-              Create Project
+        <div className="flex gap-2 pt-4">
+          <Link href="/projects">
+            <Button variant="outline" data-testid="button-cancel-project">
+              Cancel
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </Link>
+          <Button
+            onClick={handleCreateProject}
+            disabled={!isValid}
+            data-testid="button-create-project"
+          >
+            Create Project
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
