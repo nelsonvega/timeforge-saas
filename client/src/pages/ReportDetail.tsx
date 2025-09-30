@@ -428,8 +428,8 @@ export default function ReportDetail() {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 flex" align="start">
-                      <div className="border-r">
-                        <div className="p-3 space-y-1">
+                      <div className="border-r min-w-[180px]">
+                        <div className="p-2">
                           {quickDateOptions.map((option) => (
                             <button
                               key={option}
