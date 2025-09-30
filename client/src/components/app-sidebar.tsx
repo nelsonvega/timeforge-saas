@@ -1,4 +1,4 @@
-import { BarChart3, Briefcase, Clock, FolderOpen, Settings, Users } from "lucide-react";
+import { BarChart3, Briefcase, Clock, FolderOpen, Settings, Users, FileText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -52,6 +52,12 @@ const menuItems = [
     url: "/team",
     icon: Users,
     testId: "link-team",
+  },
+  {
+    title: "Reports",
+    url: "/reports",
+    icon: FileText,
+    testId: "link-reports",
   },
   {
     title: "Settings",
