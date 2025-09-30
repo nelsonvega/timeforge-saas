@@ -69,12 +69,22 @@ Preferred communication style: Simple, everyday language.
 - Drizzle Kit for migrations (output directory: `./migrations`)
 - Schema definition in `shared/schema.ts` for sharing between client and server
 - Zod schema validation using drizzle-zod integration
-- Current schema includes basic user table with UUID primary keys
+- Tables: `users`, `tenants`, `workspaces`, `workspace_memberships`, `clients`, `projects`, `time_entries`, `project_assignments`, `sessions`
+- All tables use UUID primary keys via `gen_random_uuid()`
+- Composite indexes on workspace+status for efficient filtering
 
 **Data Access Pattern:**
-- Storage interface abstraction allows switching between in-memory and database implementations
-- Current implementation uses in-memory Map structures
-- Database-ready with connection pool established but not yet utilized in storage layer
+- Storage interface abstraction with workspace context filtering
+- Database implementation using Drizzle ORM with complete data isolation
+- All business entities (clients, projects, time entries) scoped to workspaces
+
+**Multi-Tenant Architecture:**
+- Tenant→Workspace→Membership domain model with complete data isolation
+- Tables: `tenants`, `workspaces`, `workspace_memberships`
+- All business tables include `workspaceId` foreign key with cascading deletes
+- Workspace middleware validates membership before processing requests
+- Role-based permissions moved from global `users.role` to per-workspace `workspace_memberships.role`
+- Users can belong to multiple workspaces with different roles in each
 
 ### Authentication and Authorization Mechanisms
 

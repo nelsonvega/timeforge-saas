@@ -1,17 +1,21 @@
 import type { Request, Response, NextFunction } from "express";
-import type { User, UserRole } from "@shared/schema";
+import type { User, UserRole, WorkspaceMembership } from "@shared/schema";
 
 export function requireRole(...allowedRoles: UserRole[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: any, res: Response, next: NextFunction) => {
     const user = req.user as User | undefined;
+    const membership = req.workspaceMembership as WorkspaceMembership | undefined;
 
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!allowedRoles.includes(user.role as UserRole)) {
+    // Check workspace-specific role if membership exists
+    const roleToCheck = membership ? membership.role : user.role;
+
+    if (!allowedRoles.includes(roleToCheck as UserRole)) {
       return res.status(403).json({ 
-        message: "Access denied. Insufficient permissions." 
+        message: "Access denied. Insufficient permissions for this workspace." 
       });
     }
 

@@ -11,8 +11,15 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  workspaceId?: string,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  let finalUrl = url;
+  if (workspaceId) {
+    const separator = url.includes('?') ? '&' : '?';
+    finalUrl = `${url}${separator}workspaceId=${workspaceId}`;
+  }
+
+  const res = await fetch(finalUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -29,7 +36,16 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    let url = queryKey[0] as string;
+    
+    // If there's a workspaceId in the query key, append it as a parameter
+    if (queryKey.length > 1 && typeof queryKey[1] === 'string') {
+      const workspaceId = queryKey[1];
+      const separator = url.includes('?') ? '&' : '?';
+      url = `${url}${separator}workspaceId=${workspaceId}`;
+    }
+
+    const res = await fetch(url, {
       credentials: "include",
     });
 

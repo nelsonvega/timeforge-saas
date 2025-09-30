@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import Dashboard from "@/pages/Dashboard";
 import Tracker from "@/pages/Tracker";
 import Projects from "@/pages/Projects";
@@ -125,8 +127,9 @@ function AppContent() {
         <div className="flex h-screen w-full">
           <AppSidebar />
           <div className="flex flex-col flex-1">
-            <header className="flex items-center justify-between p-2 border-b">
+            <header className="flex items-center justify-between p-2 border-b gap-2">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <WorkspaceSelector />
               <ThemeToggle />
             </header>
             <main className="flex-1 overflow-auto">
@@ -145,7 +148,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <AppContent />
+          <WorkspaceProvider>
+            <AppContent />
+          </WorkspaceProvider>
         </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>
