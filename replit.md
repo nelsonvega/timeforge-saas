@@ -78,37 +78,53 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication and Authorization Mechanisms
 
-**Implementation:**
+**Authentication Implementation:**
 - Replit Auth with OAuth 2.0 / OpenID Connect (supports Google, GitHub, Apple, X, and email/password)
 - Session-based authentication using Passport.js with openid-client strategy
 - PostgreSQL session store via connect-pg-simple with 7-day session TTL
 - Automatic session refresh with refresh tokens to maintain user sessions
 - Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`
 
+**Role-Based Access Control (RBAC):**
+- Three role levels: `admin`, `manager`, and `member`
+- Backend middleware (`requireRole`) protects API endpoints based on user role
+- Frontend permissions hook (`usePermissions`) controls UI visibility and route access
+- Dynamic sidebar navigation that shows/hides menu items based on role
+- Route guards redirect unauthorized users to appropriate default pages
+
+**Role Permissions:**
+- **Admin & Manager**: Full access to dashboard, projects, clients, team, and reports
+- **Member**: Access restricted to time tracker and settings only
+- Time tracking functionality available to all roles
+
 **Database Schema:**
 - `sessions` table for session persistence with expiration index
-- `users` table includes OAuth profile fields: `email`, `firstName`, `lastName`, `profileImageUrl`
-- Legacy fields maintained for backward compatibility: `username`, `password`, `name`, `role`, `hourlyRate`
+- `users` table includes OAuth profile fields: `email`, `firstName`, `lastName`, `profileImageUrl`, `role`
+- Role stored in `role` field with default value of "member"
 - `upsertUser` operation handles OAuth user creation/updates on login
 
 **Frontend Flow:**
 - `useAuth` hook provides `user`, `isLoading`, and `isAuthenticated` state
+- `usePermissions` hook provides role-based access flags and user role information
 - App-level authentication guard in `App.tsx` redirects unauthenticated users to `/login`
-- Loading state displayed during auth check
-- Login page redirects to `/api/login` which triggers OAuth flow
-- After successful auth, user redirected to home page
+- Protected routes redirect unauthorized users to `/tracker` (their default landing page)
+- Login page redirects to dashboard for admin/manager or tracker for members after authentication
+- Sidebar dynamically filters menu items based on user permissions
 
 **Backend Flow:**
 - `server/replitAuth.ts` configures Passport strategies for each Replit domain
-- `isAuthenticated` middleware checks session validity and refreshes tokens if needed
-- `GET /api/auth/user` returns current user profile from database
-- All protected routes return 401 for unauthenticated requests
+- `isAuthenticated` middleware validates session, refreshes tokens if needed, loads full user record with role
+- `requireRole` middleware checks user role and returns 403 Forbidden for unauthorized access
+- `GET /api/auth/user` returns sanitized user profile (id, email, name, profileImageUrl, role)
+- Protected routes return 401 for unauthenticated requests, 403 for unauthorized role access
 
 **Security Considerations:**
 - Environment-based configuration via `ISSUER_URL`, `REPL_ID`, `SESSION_SECRET`, `DATABASE_URL`
 - Secure cookies with httpOnly, secure flags, and 7-day maxAge
 - Trust proxy enabled for proper secure cookie handling in Replit environment
 - OIDC discovery with memoization (1-hour cache) for performance
+- Session tokens preserved during role validation to maintain refresh capability
+- User role loaded from database on every request for accurate authorization
 
 ### External Dependencies
 

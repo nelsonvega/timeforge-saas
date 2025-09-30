@@ -84,6 +84,7 @@ function Router() {
 function AppContent() {
   const [location] = useLocation();
   const { isAuthenticated, isLoading } = useAuth();
+  const { canAccessDashboard } = usePermissions();
   const isLoginPage = location === "/login";
 
   if (isLoading) {
@@ -96,8 +97,6 @@ function AppContent() {
       </div>
     );
   }
-
-  const { canAccessDashboard } = usePermissions();
 
   if (!isAuthenticated && !isLoginPage) {
     return <Redirect to="/login" />;

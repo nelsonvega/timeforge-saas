@@ -128,27 +128,44 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  const sessionUser = req.user as any;
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  if (!req.isAuthenticated() || !sessionUser.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (now <= user.expires_at) {
-    return next();
-  }
+  if (now > sessionUser.expires_at) {
+    const refreshToken = sessionUser.refresh_token;
+    if (!refreshToken) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
 
-  const refreshToken = user.refresh_token;
-  if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    try {
+      const config = await getOidcConfig();
+      const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
+      updateUserSession(sessionUser, tokenResponse);
+    } catch (error) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
   }
 
   try {
-    const config = await getOidcConfig();
-    const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
+    const userId = sessionUser.claims.sub;
+    const fullUser = await storage.getUser(userId);
+    
+    if (!fullUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    sessionUser.role = fullUser.role;
+    sessionUser.id = fullUser.id;
+    sessionUser.email = fullUser.email;
+    sessionUser.name = fullUser.name;
+    sessionUser.profileImageUrl = fullUser.profileImageUrl;
+    
     return next();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
