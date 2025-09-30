@@ -16,9 +16,15 @@ interface DashboardMetrics {
 }
 
 export default function Dashboard() {
-  const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
+  const { data: metrics, isLoading, isError } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/metrics'],
   });
+
+  const getMetricValue = (value: number | undefined, fallback: string = "0") => {
+    if (isLoading) return "...";
+    if (isError) return "Error";
+    return value !== undefined ? String(value) : fallback;
+  };
 
   return (
     <div className="p-8 space-y-6">
@@ -34,25 +40,25 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Hours"
-          value={isLoading ? "..." : metrics?.totalHours.toString() || "0"}
+          value={getMetricValue(metrics?.totalHours)}
           icon={Clock}
           testId="metric-total-hours"
         />
         <MetricCard
           title="Billable Percentage"
-          value={isLoading ? "..." : `${metrics?.billablePercentage || 0}%`}
+          value={isLoading ? "..." : isError ? "Error" : `${metrics?.billablePercentage ?? 0}%`}
           icon={DollarSign}
           testId="metric-billable"
         />
         <MetricCard
           title="Active Projects"
-          value={isLoading ? "..." : metrics?.activeProjects.toString() || "0"}
+          value={getMetricValue(metrics?.activeProjects)}
           icon={FolderOpen}
           testId="metric-active-projects"
         />
         <MetricCard
           title="Utilization Rate"
-          value={isLoading ? "..." : `${metrics?.utilizationRate || 0}%`}
+          value={isLoading ? "..." : isError ? "Error" : `${metrics?.utilizationRate ?? 0}%`}
           icon={TrendingUp}
           testId="metric-utilization"
         />
