@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Download, Calendar, Filter } from "lucide-react";
+import { ArrowLeft, Download, Calendar, Filter, TrendingUp, Clock, DollarSign, Users } from "lucide-react";
 import { Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 const reportData: Record<string, any> = {
   "1": {
@@ -30,6 +31,12 @@ const reportData: Record<string, any> = {
       { project: "Marketing Campaign", client: "Brand Co", user: "Alex Turner", hours: 15.0, status: "Active" },
     ],
     columns: ["Project", "Client", "User", "Hours", "Status"],
+    summary: {
+      totalHours: "121.0",
+      averageHours: "30.3",
+      activeProjects: "3",
+      completedProjects: "1",
+    },
   },
   "2": {
     title: "Billable vs Non-Billable",
@@ -40,6 +47,12 @@ const reportData: Record<string, any> = {
       { project: "Marketing Campaign", billable: 12.0, nonBillable: 3.0, total: 15.0, percentage: "80%" },
     ],
     columns: ["Project", "Billable Hours", "Non-Billable Hours", "Total Hours", "Billable %"],
+    summary: {
+      totalBillable: "110.0",
+      totalNonBillable: "11.0",
+      billableRate: "91%",
+      revenue: "$11,000",
+    },
   },
   "3": {
     title: "Project Hours Report",
@@ -50,6 +63,12 @@ const reportData: Record<string, any> = {
       { project: "Marketing Campaign", hours: 15.0, budget: 20, spent: "$1,500", remaining: 5.0 },
     ],
     columns: ["Project", "Hours Logged", "Budget (hrs)", "Spent", "Remaining (hrs)"],
+    summary: {
+      totalHours: "121.0",
+      totalBudget: "190 hrs",
+      totalSpent: "$12,100",
+      budgetRemaining: "69 hrs",
+    },
   },
   "4": {
     title: "Team Utilization Report",
@@ -60,6 +79,12 @@ const reportData: Record<string, any> = {
       { member: "Alex Turner", role: "Developer", hours: 35.0, capacity: 40, utilization: "88%" },
     ],
     columns: ["Team Member", "Role", "Hours Logged", "Capacity (hrs)", "Utilization"],
+    summary: {
+      teamSize: "4",
+      avgUtilization: "88%",
+      totalCapacity: "160 hrs",
+      totalLogged: "141.0 hrs",
+    },
   },
   "5": {
     title: "Client Activity Report",
@@ -70,6 +95,12 @@ const reportData: Record<string, any> = {
       { client: "Brand Co", projects: 1, hours: 15.0, lastActivity: "5 hours ago", status: "Active" },
     ],
     columns: ["Client", "Projects", "Total Hours", "Last Activity", "Status"],
+    summary: {
+      totalClients: "4",
+      activeClients: "3",
+      totalProjects: "5",
+      totalHours: "141.0",
+    },
   },
   "6": {
     title: "Weekly Timesheet",
@@ -80,14 +111,29 @@ const reportData: Record<string, any> = {
       { user: "Alex Turner", project: "Marketing Campaign", mon: 7, tue: 6, wed: 7, thu: 8, fri: 7, total: 35 },
     ],
     columns: ["User", "Project", "Mon", "Tue", "Wed", "Thu", "Fri", "Total"],
+    summary: {
+      totalHours: "134.0",
+      avgDaily: "26.8",
+      peakDay: "Thursday",
+      lowestDay: "Friday",
+    },
   },
 };
+
+const projects = ["All Projects", "Website Redesign", "Mobile App", "Brand Identity", "Marketing Campaign"];
+const clients = ["All Clients", "Acme Corp", "TechStart Inc", "DataFlow Ltd", "Brand Co"];
+const teamMembers = ["All Members", "Sarah Johnson", "Mike Chen", "Emma Wilson", "Alex Turner"];
+const statuses = ["All Status", "Active", "Completed", "On Hold"];
 
 export default function ReportDetail() {
   const params = useParams();
   const reportId = params.id || "1";
   const report = reportData[reportId];
-  const [dateRange, setDateRange] = useState("7days");
+  const [dateRange, setDateRange] = useState("30days");
+  const [selectedProject, setSelectedProject] = useState("All Projects");
+  const [selectedClient, setSelectedClient] = useState("All Clients");
+  const [selectedMember, setSelectedMember] = useState("All Members");
+  const [selectedStatus, setSelectedStatus] = useState("All Status");
 
   if (!report) {
     return (
@@ -145,6 +191,29 @@ export default function ReportDetail() {
               margin-bottom: 30px;
               font-size: 14px;
             }
+            .summary {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 20px;
+              margin-bottom: 30px;
+            }
+            .summary-card {
+              padding: 20px;
+              background: #f9f9f9;
+              border-radius: 8px;
+            }
+            .summary-card h3 {
+              margin: 0 0 5px 0;
+              font-size: 12px;
+              color: #666;
+              text-transform: uppercase;
+            }
+            .summary-card p {
+              margin: 0;
+              font-size: 24px;
+              font-weight: bold;
+              color: #333;
+            }
             table {
               width: 100%;
               border-collapse: collapse;
@@ -177,6 +246,14 @@ export default function ReportDetail() {
           <h1>${report.title}</h1>
           <div class="meta">
             Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+          </div>
+          <div class="summary">
+            ${Object.entries(report.summary).map(([key, value]) => `
+              <div class="summary-card">
+                <h3>${key.replace(/([A-Z])/g, ' $1').trim()}</h3>
+                <p>${value}</p>
+              </div>
+            `).join('')}
           </div>
           <table>
             <thead>
@@ -223,6 +300,37 @@ export default function ReportDetail() {
     return value;
   };
 
+  const summaryCards = [
+    {
+      label: Object.keys(report.summary)[0].replace(/([A-Z])/g, ' $1').trim(),
+      value: Object.values(report.summary)[0] as string,
+      icon: TrendingUp,
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
+    },
+    {
+      label: Object.keys(report.summary)[1].replace(/([A-Z])/g, ' $1').trim(),
+      value: Object.values(report.summary)[1] as string,
+      icon: Clock,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
+      label: Object.keys(report.summary)[2].replace(/([A-Z])/g, ' $1').trim(),
+      value: Object.values(report.summary)[2] as string,
+      icon: DollarSign,
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
+    },
+    {
+      label: Object.keys(report.summary)[3].replace(/([A-Z])/g, ' $1').trim(),
+      value: Object.values(report.summary)[3] as string,
+      icon: Users,
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-card">
@@ -236,17 +344,17 @@ export default function ReportDetail() {
             <div className="flex-1">
               <h1 className="text-3xl font-semibold">{report.title}</h1>
               <p className="text-muted-foreground mt-1">
-                Generated on {new Date().toLocaleDateString()}
+                Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={downloadCSV} data-testid="button-download-csv">
                 <Download className="h-4 w-4 mr-2" />
-                Download CSV
+                CSV
               </Button>
               <Button onClick={downloadPDF} data-testid="button-download-pdf">
                 <Download className="h-4 w-4 mr-2" />
-                Download PDF
+                PDF
               </Button>
             </div>
           </div>
@@ -255,43 +363,153 @@ export default function ReportDetail() {
 
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {summaryCards.map((card, index) => {
+              const Icon = card.icon;
+              return (
+                <Card key={index}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                          {card.label}
+                        </p>
+                        <p className="text-3xl font-bold">{card.value}</p>
+                      </div>
+                      <div className={`h-12 w-12 rounded-lg ${card.bgColor} flex items-center justify-center`}>
+                        <Icon className={`h-6 w-6 ${card.color}`} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Filters</CardTitle>
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-muted-foreground" />
+                <CardTitle>Filters & Parameters</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date-range" className="text-xs font-medium text-muted-foreground">
+                    Date Range
+                  </Label>
                   <Select value={dateRange} onValueChange={setDateRange}>
-                    <SelectTrigger className="w-[180px]" data-testid="select-date-range">
-                      <SelectValue placeholder="Select date range" />
+                    <SelectTrigger id="date-range" data-testid="select-date-range">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="7days">Last 7 days</SelectItem>
                       <SelectItem value="30days">Last 30 days</SelectItem>
                       <SelectItem value="90days">Last 90 days</SelectItem>
-                      <SelectItem value="year">This year</SelectItem>
-                      <SelectItem value="all">All time</SelectItem>
+                      <SelectItem value="quarter">This Quarter</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <Badge variant="secondary" className="ml-auto">
-                  {report.data.length} records
+
+                <div className="space-y-2">
+                  <Label htmlFor="project" className="text-xs font-medium text-muted-foreground">
+                    Project
+                  </Label>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger id="project" data-testid="select-project">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project} value={project}>
+                          {project}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="client" className="text-xs font-medium text-muted-foreground">
+                    Client
+                  </Label>
+                  <Select value={selectedClient} onValueChange={setSelectedClient}>
+                    <SelectTrigger id="client" data-testid="select-client">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client} value={client}>
+                          {client}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="member" className="text-xs font-medium text-muted-foreground">
+                    Team Member
+                  </Label>
+                  <Select value={selectedMember} onValueChange={setSelectedMember}>
+                    <SelectTrigger id="member" data-testid="select-member">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers.map((member) => (
+                        <SelectItem key={member} value={member}>
+                          {member}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status" className="text-xs font-medium text-muted-foreground">
+                    Status
+                  </Label>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger id="status" data-testid="select-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <Badge variant="secondary">
+                  {report.data.length} records found
                 </Badge>
+                <Button variant="ghost" size="sm">
+                  Reset Filters
+                </Button>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardHeader>
+              <CardTitle>Report Data</CardTitle>
+            </CardHeader>
+            <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     {report.columns.map((column: string) => (
-                      <TableHead key={column}>{column}</TableHead>
+                      <TableHead key={column} className="font-semibold">
+                        {column}
+                      </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
