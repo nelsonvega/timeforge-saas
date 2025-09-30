@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useQuery } from "@tanstack/react-query";
+import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import type { TimeEntry, User } from "@shared/schema";
 
 export function TeamUtilizationChart() {
@@ -12,9 +13,17 @@ export function TeamUtilizationChart() {
     queryKey: ['/api/users'],
   });
 
+  const now = new Date();
+  const weekStart = startOfWeek(now);
+  const weekEnd = endOfWeek(now);
+
   const userUtilization = users.map(user => {
-    const userEntries = entries.filter(e => e.userId === user.id);
-    const totalMinutes = userEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+    const userEntriesThisWeek = entries.filter(e => 
+      e.userId === user.id &&
+      isWithinInterval(new Date(e.startTime), { start: weekStart, end: weekEnd })
+    );
+    
+    const totalMinutes = userEntriesThisWeek.reduce((sum, e) => sum + (e.duration || 0), 0);
     const totalHours = totalMinutes / 60;
     const utilization = Math.min(100, Math.round((totalHours / 40) * 100));
 
