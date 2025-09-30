@@ -91,8 +91,8 @@ export function TrackerTable() {
   const [manualTask, setManualTask] = useState("");
   const [manualProject, setManualProject] = useState("");
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
-  const [manualHours, setManualHours] = useState("");
-  const [manualMinutes, setManualMinutes] = useState("");
+  const [manualStartTime, setManualStartTime] = useState("");
+  const [manualEndTime, setManualEndTime] = useState("");
   const [manualBillable, setManualBillable] = useState(true);
 
   const formatTime = (totalSeconds: number) => {
@@ -124,11 +124,21 @@ export function TrackerTable() {
   };
 
   const handleAddManualEntry = () => {
-    if (!manualTask || !manualProject || !manualDate) return;
+    if (!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime) return;
     
-    const hours = parseInt(manualHours) || 0;
-    const minutes = parseInt(manualMinutes) || 0;
-    const totalSeconds = (hours * 3600) + (minutes * 60);
+    const [startHour, startMin] = manualStartTime.split(':').map(Number);
+    const [endHour, endMin] = manualEndTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    const durationMinutes = endMinutes - startMinutes;
+    
+    if (durationMinutes <= 0) {
+      console.error('End time must be after start time');
+      return;
+    }
+    
+    const totalSeconds = durationMinutes * 60;
     
     const newEntry: TimeEntry = {
       id: Date.now().toString(),
@@ -146,8 +156,8 @@ export function TrackerTable() {
     setManualTask("");
     setManualProject("");
     setManualDate(new Date().toISOString().split('T')[0]);
-    setManualHours("");
-    setManualMinutes("");
+    setManualStartTime("");
+    setManualEndTime("");
     setManualBillable(true);
     setManualDialogOpen(false);
     console.log('Added manual entry:', newEntry);
@@ -288,23 +298,21 @@ export function TrackerTable() {
                 className="w-[150px]"
               />
               <Input
-                type="number"
-                min="0"
-                placeholder="Hours"
-                value={manualHours}
-                onChange={(e) => setManualHours(e.target.value)}
-                data-testid="input-manual-hours"
-                className="w-[80px]"
+                type="time"
+                placeholder="Start"
+                value={manualStartTime}
+                onChange={(e) => setManualStartTime(e.target.value)}
+                data-testid="input-manual-start-time"
+                className="w-[120px]"
               />
+              <span className="text-muted-foreground">to</span>
               <Input
-                type="number"
-                min="0"
-                max="59"
-                placeholder="Min"
-                value={manualMinutes}
-                onChange={(e) => setManualMinutes(e.target.value)}
-                data-testid="input-manual-minutes"
-                className="w-[70px]"
+                type="time"
+                placeholder="End"
+                value={manualEndTime}
+                onChange={(e) => setManualEndTime(e.target.value)}
+                data-testid="input-manual-end-time"
+                className="w-[120px]"
               />
               <div className="flex items-center gap-2">
                 <Switch
@@ -317,7 +325,7 @@ export function TrackerTable() {
               </div>
               <Button
                 onClick={handleAddManualEntry}
-                disabled={!manualTask || !manualProject || !manualDate || (!manualHours && !manualMinutes)}
+                disabled={!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime}
                 data-testid="button-add-manual-entry"
               >
                 <Plus className="h-4 w-4 mr-2" />
