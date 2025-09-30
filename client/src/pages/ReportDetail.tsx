@@ -427,14 +427,14 @@ export default function ReportDetail() {
                         {dateRange}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 flex" align="start">
-                      <div className="border-r min-w-[180px]">
-                        <div className="p-2">
+                    <PopoverContent className="w-auto p-0 flex" align="start" sideOffset={5}>
+                      <div className="border-r">
+                        <div className="p-1.5 space-y-0.5">
                           {quickDateOptions.map((option) => (
                             <button
                               key={option}
                               onClick={() => setDateRange(option)}
-                              className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                              className={`w-full text-left px-2.5 py-1.5 text-sm rounded transition-colors whitespace-nowrap ${
                                 dateRange === option
                                   ? "bg-primary text-primary-foreground"
                                   : "hover-elevate"
@@ -450,7 +450,7 @@ export default function ReportDetail() {
                         mode="single"
                         selected={date}
                         onSelect={setDate}
-                        className="rounded-md"
+                        className="rounded-md p-2"
                       />
                     </PopoverContent>
                   </Popover>
