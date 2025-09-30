@@ -1,14 +1,46 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-
-const data = [
-  { name: "Billable", value: 194, hours: "194h" },
-  { name: "Non-billable", value: 54, hours: "54h" },
-];
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import type { TimeEntry } from "@shared/schema";
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-5))"];
 
 export function TimeDistributionChart() {
+  const { data: entries = [] } = useQuery<TimeEntry[]>({
+    queryKey: ['/api/time-entries'],
+  });
+
+  const billableMinutes = entries
+    .filter(e => e.isBillable && e.duration)
+    .reduce((sum, e) => sum + (e.duration || 0), 0);
+  
+  const nonBillableMinutes = entries
+    .filter(e => !e.isBillable && e.duration)
+    .reduce((sum, e) => sum + (e.duration || 0), 0);
+
+  const billableHours = Math.round((billableMinutes / 60) * 10) / 10;
+  const nonBillableHours = Math.round((nonBillableMinutes / 60) * 10) / 10;
+
+  const data = [
+    { name: "Billable", value: billableHours, hours: `${billableHours}h` },
+    { name: "Non-billable", value: nonBillableHours, hours: `${nonBillableHours}h` },
+  ].filter(item => item.value > 0);
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Time Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
+            No time entries yet
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>

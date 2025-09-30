@@ -1,17 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const data = [
-  { day: "Mon", hours: 6.5 },
-  { day: "Tue", hours: 8.2 },
-  { day: "Wed", hours: 7.8 },
-  { day: "Thu", hours: 9.1 },
-  { day: "Fri", hours: 7.5 },
-  { day: "Sat", hours: 2.0 },
-  { day: "Sun", hours: 0.5 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay } from "date-fns";
+import type { TimeEntry } from "@shared/schema";
 
 export function WeeklyTrendChart() {
+  const { data: entries = [] } = useQuery<TimeEntry[]>({
+    queryKey: ['/api/time-entries'],
+  });
+
+  const now = new Date();
+  const weekStart = startOfWeek(now);
+  const weekEnd = endOfWeek(now);
+  const daysOfWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  const data = daysOfWeek.map(day => {
+    const dayEntries = entries.filter(entry => 
+      isSameDay(new Date(entry.startTime), day)
+    );
+    
+    const totalMinutes = dayEntries.reduce((sum, e) => sum + (e.duration || 0), 0);
+    const hours = Math.round((totalMinutes / 60) * 10) / 10;
+
+    return {
+      day: format(day, 'EEE'),
+      hours,
+    };
+  });
+
   return (
     <Card>
       <CardHeader>
