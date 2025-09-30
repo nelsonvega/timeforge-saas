@@ -29,6 +29,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard
+  app.get('/api/dashboard/metrics', async (_req, res) => {
+    try {
+      const metrics = await storage.getDashboardMetrics();
+      res.json(metrics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Clients
   app.get("/api/clients", async (_req, res) => {
     try {

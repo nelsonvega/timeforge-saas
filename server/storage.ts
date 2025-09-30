@@ -11,6 +11,13 @@ import {
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
+export interface DashboardMetrics {
+  totalHours: number;
+  billablePercentage: number;
+  activeProjects: number;
+  utilizationRate: number;
+}
+
 export interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
@@ -51,6 +58,9 @@ export interface IStorage {
   getProjectAssignments(projectId: string): Promise<ProjectAssignment[]>;
   getUserAssignments(userId: string): Promise<ProjectAssignment[]>;
   removeUserFromProject(userId: string, projectId: string): Promise<boolean>;
+
+  // Dashboard
+  getDashboardMetrics(): Promise<DashboardMetrics>;
 }
 
 export class DbStorage implements IStorage {
@@ -213,6 +223,35 @@ export class DbStorage implements IStorage {
       )
     ).returning();
     return result.length > 0;
+  }
+
+  // Dashboard
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
+    const allEntries = await this.getAllTimeEntries();
+    const allProjects = await this.getAllProjects();
+    
+    const totalMinutes = allEntries
+      .filter(entry => entry.duration)
+      .reduce((sum, entry) => sum + (entry.duration || 0), 0);
+    const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+    
+    const billableMinutes = allEntries
+      .filter(entry => entry.isBillable && entry.duration)
+      .reduce((sum, entry) => sum + (entry.duration || 0), 0);
+    const billablePercentage = totalMinutes > 0 
+      ? Math.round((billableMinutes / totalMinutes) * 100) 
+      : 0;
+    
+    const activeProjects = allProjects.filter(p => p.status === 'active').length;
+    
+    const utilizationRate = totalMinutes > 0 ? Math.min(100, Math.round((totalMinutes / (40 * 60)) * 100)) : 0;
+    
+    return {
+      totalHours,
+      billablePercentage,
+      activeProjects,
+      utilizationRate,
+    };
   }
 }
 
