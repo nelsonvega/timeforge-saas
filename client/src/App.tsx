@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import Dashboard from "@/pages/Dashboard";
 import Tracker from "@/pages/Tracker";
 import Projects from "@/pages/Projects";
@@ -23,21 +24,57 @@ import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 
+function ProtectedRoute({ 
+  component: Component, 
+  permission 
+}: { 
+  component: React.ComponentType, 
+  permission?: keyof ReturnType<typeof usePermissions> 
+}) {
+  const permissions = usePermissions();
+  
+  if (permission && !permissions[permission]) {
+    return <Redirect to="/tracker" />;
+  }
+  
+  return <Component />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" component={Dashboard} />
+      <Route path="/">
+        {() => <ProtectedRoute component={Dashboard} permission="canAccessDashboard" />}
+      </Route>
       <Route path="/tracker" component={Tracker} />
-      <Route path="/projects" component={Projects} />
-      <Route path="/projects/new" component={NewProject} />
-      <Route path="/clients" component={Clients} />
-      <Route path="/clients/new" component={NewClient} />
-      <Route path="/team" component={Team} />
-      <Route path="/team/new" component={NewTeamMember} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/reports/time-summary" component={TimeSummaryReport} />
-      <Route path="/reports/:id" component={ReportDetail} />
+      <Route path="/projects">
+        {() => <ProtectedRoute component={Projects} permission="canAccessProjects" />}
+      </Route>
+      <Route path="/projects/new">
+        {() => <ProtectedRoute component={NewProject} permission="canAccessProjects" />}
+      </Route>
+      <Route path="/clients">
+        {() => <ProtectedRoute component={Clients} permission="canAccessClients" />}
+      </Route>
+      <Route path="/clients/new">
+        {() => <ProtectedRoute component={NewClient} permission="canAccessClients" />}
+      </Route>
+      <Route path="/team">
+        {() => <ProtectedRoute component={Team} permission="canAccessTeam" />}
+      </Route>
+      <Route path="/team/new">
+        {() => <ProtectedRoute component={NewTeamMember} permission="canAccessTeam" />}
+      </Route>
+      <Route path="/reports">
+        {() => <ProtectedRoute component={Reports} permission="canAccessReports" />}
+      </Route>
+      <Route path="/reports/time-summary">
+        {() => <ProtectedRoute component={TimeSummaryReport} permission="canAccessReports" />}
+      </Route>
+      <Route path="/reports/:id">
+        {() => <ProtectedRoute component={ReportDetail} permission="canAccessReports" />}
+      </Route>
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
@@ -60,12 +97,14 @@ function AppContent() {
     );
   }
 
+  const { canAccessDashboard } = usePermissions();
+
   if (!isAuthenticated && !isLoginPage) {
     return <Redirect to="/login" />;
   }
 
   if (isAuthenticated && isLoginPage) {
-    return <Redirect to="/" />;
+    return <Redirect to={canAccessDashboard ? "/" : "/tracker"} />;
   }
 
   const style = {

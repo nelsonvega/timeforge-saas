@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, insertProjectAssignmentSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { requireRole } from "./middleware/authorization";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -30,7 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard
-  app.get('/api/dashboard/metrics', async (_req, res) => {
+  app.get('/api/dashboard/metrics', requireRole("admin", "manager"), async (_req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -40,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clients
-  app.get("/api/clients", async (_req, res) => {
+  app.get("/api/clients", requireRole("admin", "manager"), async (_req, res) => {
     try {
       const clients = await storage.getAllClients();
       res.json(clients);
@@ -49,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:id", async (req, res) => {
+  app.get("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const client = await storage.getClient(req.params.id);
       if (!client) {
@@ -61,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients", async (req, res) => {
+  app.post("/api/clients", requireRole("admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertClientSchema.parse(req.body);
       const client = await storage.createClient(validatedData);
@@ -71,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/clients/:id", async (req, res) => {
+  app.patch("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const client = await storage.updateClient(req.params.id, req.body);
       if (!client) {
@@ -83,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clients/:id", async (req, res) => {
+  app.delete("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const success = await storage.deleteClient(req.params.id);
       if (!success) {
@@ -96,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Projects
-  app.get("/api/projects", async (_req, res) => {
+  app.get("/api/projects", requireRole("admin", "manager"), async (_req, res) => {
     try {
       const projects = await storage.getAllProjects();
       res.json(projects);
@@ -105,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id", async (req, res) => {
+  app.get("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -117,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/client/:clientId", async (req, res) => {
+  app.get("/api/projects/client/:clientId", requireRole("admin", "manager"), async (req, res) => {
     try {
       const projects = await storage.getProjectsByClient(req.params.clientId);
       res.json(projects);
@@ -126,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects", async (req, res) => {
+  app.post("/api/projects", requireRole("admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(validatedData);
@@ -136,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/projects/:id", async (req, res) => {
+  app.patch("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const project = await storage.updateProject(req.params.id, req.body);
       if (!project) {
@@ -148,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", async (req, res) => {
+  app.delete("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const success = await storage.deleteProject(req.params.id);
       if (!success) {
@@ -161,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users (Team Members)
-  app.get("/api/users", async (_req, res) => {
+  app.get("/api/users", requireRole("admin", "manager"), async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -170,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
@@ -182,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireRole("admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       const user = await storage.createUser(validatedData);
@@ -192,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const user = await storage.updateUser(req.params.id, req.body);
       if (!user) {
@@ -204,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
     try {
       const success = await storage.deleteUser(req.params.id);
       if (!success) {
@@ -291,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project Assignments
-  app.post("/api/project-assignments", async (req, res) => {
+  app.post("/api/project-assignments", requireRole("admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertProjectAssignmentSchema.parse(req.body);
       const assignment = await storage.assignUserToProject(validatedData);
@@ -301,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/project-assignments/project/:projectId", async (req, res) => {
+  app.get("/api/project-assignments/project/:projectId", requireRole("admin", "manager"), async (req, res) => {
     try {
       const assignments = await storage.getProjectAssignments(req.params.projectId);
       res.json(assignments);
@@ -310,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/project-assignments/user/:userId", async (req, res) => {
+  app.get("/api/project-assignments/user/:userId", requireRole("admin", "manager"), async (req, res) => {
     try {
       const assignments = await storage.getUserAssignments(req.params.userId);
       res.json(assignments);
@@ -319,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/project-assignments/:userId/:projectId", async (req, res) => {
+  app.delete("/api/project-assignments/:userId/:projectId", requireRole("admin", "manager"), async (req, res) => {
     try {
       const success = await storage.removeUserFromProject(req.params.userId, req.params.projectId);
       if (!success) {
