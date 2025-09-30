@@ -1,6 +1,8 @@
+import { Plus } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/ProjectCard";
 import { Input } from "@/components/ui/input";
-import { NewProjectDialog } from "@/components/NewProjectDialog";
 
 const mockProjects = [
   {
@@ -55,7 +57,12 @@ export default function Projects() {
             Manage your client projects and track progress
           </p>
         </div>
-        <NewProjectDialog />
+        <Link href="/projects/new">
+          <Button data-testid="button-add-project">
+            <Plus className="h-4 w-4 mr-2" />
+            New Project
+          </Button>
+        </Link>
       </div>
 
       <Input
