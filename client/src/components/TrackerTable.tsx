@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Play, Square, Check, X, MoreHorizontal } from "lucide-react";
+import { Play, Square, Check, X, MoreHorizontal, Plus, Clock } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -16,7 +16,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -24,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface TimeEntry {
   id: string;
@@ -74,6 +86,14 @@ export function TrackerTable() {
   const [entries, setEntries] = useState(mockEntries);
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newProject, setNewProject] = useState("");
+  
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualTask, setManualTask] = useState("");
+  const [manualProject, setManualProject] = useState("");
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualHours, setManualHours] = useState("");
+  const [manualMinutes, setManualMinutes] = useState("");
+  const [manualBillable, setManualBillable] = useState(true);
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -101,6 +121,36 @@ export function TrackerTable() {
     setNewTaskDescription("");
     setNewProject("");
     console.log('Started new timer:', newEntry);
+  };
+
+  const handleAddManualEntry = () => {
+    if (!manualTask || !manualProject || !manualDate) return;
+    
+    const hours = parseInt(manualHours) || 0;
+    const minutes = parseInt(manualMinutes) || 0;
+    const totalSeconds = (hours * 3600) + (minutes * 60);
+    
+    const newEntry: TimeEntry = {
+      id: Date.now().toString(),
+      user: "John Doe",
+      project: manualProject,
+      task: manualTask,
+      date: manualDate,
+      duration: totalSeconds,
+      billable: manualBillable,
+      status: "pending",
+      isRunning: false,
+    };
+    
+    setEntries([newEntry, ...entries]);
+    setManualTask("");
+    setManualProject("");
+    setManualDate(new Date().toISOString().split('T')[0]);
+    setManualHours("");
+    setManualMinutes("");
+    setManualBillable(true);
+    setManualDialogOpen(false);
+    console.log('Added manual entry:', newEntry);
   };
 
   const handleStopTimer = (id: string) => {
@@ -160,34 +210,145 @@ export function TrackerTable() {
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-lg p-4 bg-card">
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="What are you working on?"
-            value={newTaskDescription}
-            onChange={(e) => setNewTaskDescription(e.target.value)}
-            data-testid="input-new-task"
-            className="flex-1"
-          />
-          <Select value={newProject} onValueChange={setNewProject}>
-            <SelectTrigger className="w-[200px]" data-testid="select-new-project">
-              <SelectValue placeholder="Select project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Website Redesign">Website Redesign</SelectItem>
-              <SelectItem value="Mobile App">Mobile App</SelectItem>
-              <SelectItem value="API Integration">API Integration</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={handleStartTimer}
-            disabled={!newTaskDescription || !newProject}
-            data-testid="button-start-new-timer"
-          >
-            <Play className="h-4 w-4 mr-2" />
-            Start
-          </Button>
-        </div>
+      <div className="border rounded-lg bg-card">
+        <Tabs defaultValue="timer" className="w-full">
+          <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+            <TabsTrigger 
+              value="timer" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="tab-timer"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Start Timer
+            </TabsTrigger>
+            <TabsTrigger 
+              value="manual"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              data-testid="tab-manual"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Manual Entry
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="timer" className="p-4 m-0">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="What are you working on?"
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                data-testid="input-new-task"
+                className="flex-1"
+              />
+              <Select value={newProject} onValueChange={setNewProject}>
+                <SelectTrigger className="w-[200px]" data-testid="select-new-project">
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Website Redesign">Website Redesign</SelectItem>
+                  <SelectItem value="Mobile App">Mobile App</SelectItem>
+                  <SelectItem value="API Integration">API Integration</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleStartTimer}
+                disabled={!newTaskDescription || !newProject}
+                data-testid="button-start-new-timer"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Start
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="manual" className="p-4 m-0">
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-task">Task Description</Label>
+                  <Input
+                    id="manual-task"
+                    placeholder="What did you work on?"
+                    value={manualTask}
+                    onChange={(e) => setManualTask(e.target.value)}
+                    data-testid="input-manual-task"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-project">Project</Label>
+                  <Select value={manualProject} onValueChange={setManualProject}>
+                    <SelectTrigger id="manual-project" data-testid="select-manual-project">
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Website Redesign">Website Redesign</SelectItem>
+                      <SelectItem value="Mobile App">Mobile App</SelectItem>
+                      <SelectItem value="API Integration">API Integration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="manual-date">Date</Label>
+                  <Input
+                    id="manual-date"
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    data-testid="input-manual-date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-hours">Hours</Label>
+                  <Input
+                    id="manual-hours"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={manualHours}
+                    onChange={(e) => setManualHours(e.target.value)}
+                    data-testid="input-manual-hours"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual-minutes">Minutes</Label>
+                  <Input
+                    id="manual-minutes"
+                    type="number"
+                    min="0"
+                    max="59"
+                    placeholder="0"
+                    value={manualMinutes}
+                    onChange={(e) => setManualMinutes(e.target.value)}
+                    data-testid="input-manual-minutes"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="manual-billable"
+                    checked={manualBillable}
+                    onCheckedChange={setManualBillable}
+                    data-testid="switch-manual-billable"
+                  />
+                  <Label htmlFor="manual-billable">Billable</Label>
+                </div>
+                <Button
+                  onClick={handleAddManualEntry}
+                  disabled={!manualTask || !manualProject || !manualDate || (!manualHours && !manualMinutes)}
+                  data-testid="button-add-manual-entry"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Entry
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <div className="border rounded-lg">
