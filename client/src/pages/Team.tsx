@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { TeamTable } from "@/components/TeamTable";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,12 @@ export default function Team() {
             Manage your team and assign projects
           </p>
         </div>
-        <Button data-testid="button-invite-member">
-          <Plus className="h-4 w-4 mr-2" />
-          Invite Member
-        </Button>
+        <Link href="/team/new">
+          <Button data-testid="button-invite-member">
+            <Plus className="h-4 w-4 mr-2" />
+            Invite Member
+          </Button>
+        </Link>
       </div>
 
       <Input

@@ -14,6 +14,7 @@ import NewProject from "@/pages/NewProject";
 import Clients from "@/pages/Clients";
 import NewClient from "@/pages/NewClient";
 import Team from "@/pages/Team";
+import NewTeamMember from "@/pages/NewTeamMember";
 import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/clients" component={Clients} />
       <Route path="/clients/new" component={NewClient} />
       <Route path="/team" component={Team} />
+      <Route path="/team/new" component={NewTeamMember} />
       <Route path="/reports" component={Reports} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
