@@ -12,14 +12,14 @@ import { Badge } from "@/components/ui/badge";
 interface ClientCardProps {
   id: string;
   name: string;
-  email: string;
-  location: string;
-  projectCount: number;
-  totalHours: number;
-  status: "active" | "inactive";
+  email?: string | null;
+  address?: string | null;
+  projectCount?: number;
+  totalHours?: number;
+  status: string;
 }
 
-export function ClientCard({ id, name, email, location, projectCount, totalHours, status }: ClientCardProps) {
+export function ClientCard({ id, name, email, address, projectCount = 0, totalHours = 0, status }: ClientCardProps) {
   return (
     <Card data-testid={`card-client-${id}`} className="hover-elevate">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
@@ -47,14 +47,18 @@ export function ClientCard({ id, name, email, location, projectCount, totalHours
         </DropdownMenu>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-3 w-3" />
-          <span>{email}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-3 w-3" />
-          <span>{location}</span>
-        </div>
+        {email && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            <span>{email}</span>
+          </div>
+        )}
+        {address && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-3 w-3" />
+            <span>{address}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="text-sm">
             <span className="text-muted-foreground">Projects:</span>

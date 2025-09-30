@@ -3,47 +3,21 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ClientCard } from "@/components/ClientCard";
 import { Input } from "@/components/ui/input";
-
-const mockClients = [
-  {
-    id: "1",
-    name: "Acme Corporation",
-    email: "contact@acme.com",
-    location: "San Francisco, CA",
-    projectCount: 5,
-    totalHours: 248,
-    status: "active" as const,
-  },
-  {
-    id: "2",
-    name: "TechStart Inc",
-    email: "hello@techstart.io",
-    location: "New York, NY",
-    projectCount: 3,
-    totalHours: 180,
-    status: "active" as const,
-  },
-  {
-    id: "3",
-    name: "DataFlow Ltd",
-    email: "info@dataflow.com",
-    location: "Austin, TX",
-    projectCount: 2,
-    totalHours: 95,
-    status: "active" as const,
-  },
-  {
-    id: "4",
-    name: "Brand Co",
-    email: "team@brandco.com",
-    location: "Los Angeles, CA",
-    projectCount: 1,
-    totalHours: 32,
-    status: "inactive" as const,
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import type { Client } from "@shared/schema";
+import { useState } from "react";
 
 export default function Clients() {
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const { data: clients = [], isLoading } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -64,14 +38,24 @@ export default function Clients() {
       <Input
         placeholder="Search clients..."
         className="max-w-sm"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
         data-testid="input-search-clients"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockClients.map((client) => (
-          <ClientCard key={client.id} {...client} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Loading clients...</div>
+      ) : filteredClients.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          {searchTerm ? "No clients found matching your search." : "No clients yet. Create your first client!"}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredClients.map((client) => (
+            <ClientCard key={client.id} {...client} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

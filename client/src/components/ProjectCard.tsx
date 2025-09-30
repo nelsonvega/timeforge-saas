@@ -14,11 +14,11 @@ interface ProjectCardProps {
   id: string;
   name: string;
   client: string;
-  status: "active" | "completed" | "on-hold";
-  budget: number;
-  budgetUsed: number;
-  assignedUsers: number;
-  totalHours: number;
+  status: string;
+  budget?: string | null;
+  budgetUsed?: number;
+  assignedUsers?: number;
+  totalHours?: number;
 }
 
 export function ProjectCard({
@@ -27,16 +27,17 @@ export function ProjectCard({
   client,
   status,
   budget,
-  budgetUsed,
-  assignedUsers,
-  totalHours,
+  budgetUsed = 0,
+  assignedUsers = 0,
+  totalHours = 0,
 }: ProjectCardProps) {
-  const budgetPercentage = (budgetUsed / budget) * 100;
+  const budgetNum = budget ? parseFloat(budget) : 0;
+  const budgetPercentage = budgetNum > 0 ? (budgetUsed / budgetNum) * 100 : 0;
   
-  const statusColors = {
-    active: "default" as const,
-    completed: "secondary" as const,
-    "on-hold": "outline" as const,
+  const statusColors: Record<string, "default" | "secondary" | "outline"> = {
+    active: "default",
+    completed: "secondary",
+    "on-hold": "outline",
   };
 
   return (
@@ -47,7 +48,7 @@ export function ProjectCard({
           <p className="text-sm text-muted-foreground">{client}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={statusColors[status]}>{status}</Badge>
+          <Badge variant={statusColors[status] || "default"}>{status}</Badge>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" data-testid={`button-project-menu-${id}`}>
@@ -63,15 +64,17 @@ export function ProjectCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Budget</span>
-            <span className="font-mono font-semibold">
-              ${budgetUsed.toLocaleString()} / ${budget.toLocaleString()}
-            </span>
+        {budgetNum > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Budget</span>
+              <span className="font-mono font-semibold">
+                ${budgetUsed.toLocaleString()} / ${budgetNum.toLocaleString()}
+              </span>
+            </div>
+            <Progress value={budgetPercentage} />
           </div>
-          <Progress value={budgetPercentage} />
-        </div>
+        )}
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Users className="h-3 w-3" />

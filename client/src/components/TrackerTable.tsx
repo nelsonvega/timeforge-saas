@@ -16,15 +16,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -36,58 +27,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface TimeEntry {
-  id: string;
-  user: string;
-  project: string;
-  task: string;
-  date: string;
-  duration: number;
-  billable: boolean;
-  status: "pending" | "approved" | "rejected";
-  isRunning?: boolean;
-}
-
-const mockEntries: TimeEntry[] = [
-  {
-    id: "1",
-    user: "John Doe",
-    project: "Website Redesign",
-    task: "Frontend development",
-    date: "2025-09-29",
-    duration: 16200,
-    billable: true,
-    status: "pending",
-  },
-  {
-    id: "2",
-    user: "Jane Smith",
-    project: "Mobile App",
-    task: "UI design review",
-    date: "2025-09-29",
-    duration: 8100,
-    billable: true,
-    status: "approved",
-  },
-  {
-    id: "3",
-    user: "Mike Johnson",
-    project: "API Integration",
-    task: "Backend setup",
-    date: "2025-09-28",
-    duration: 21600,
-    billable: false,
-    status: "pending",
-  },
-];
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { TimeEntry, Project, User } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export function TrackerTable() {
-  const [entries, setEntries] = useState(mockEntries);
+  const { toast } = useToast();
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newProject, setNewProject] = useState("");
   
-  const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualTask, setManualTask] = useState("");
   const [manualProject, setManualProject] = useState("");
   const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
@@ -95,7 +44,80 @@ export function TrackerTable() {
   const [manualEndTime, setManualEndTime] = useState("");
   const [manualBillable, setManualBillable] = useState(true);
 
-  const formatTime = (totalSeconds: number) => {
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const { data: entries = [], isLoading } = useQuery<TimeEntry[]>({
+    queryKey: ["/api/time-entries"],
+  });
+
+  const currentUser = users[0];
+
+  const createTimeEntryMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/time-entries", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      toast({
+        title: "Time entry created",
+        description: "Your time entry has been added successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTimeEntryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/time-entries/${id}`, data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTimeEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/time-entries/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      toast({
+        title: "Time entry deleted",
+        description: "The time entry has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete time entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const formatTime = (totalSeconds: number | null) => {
+    if (!totalSeconds) return "00:00:00";
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const secs = totalSeconds % 60;
@@ -103,28 +125,24 @@ export function TrackerTable() {
   };
 
   const handleStartTimer = () => {
-    if (!newTaskDescription || !newProject) return;
+    if (!newTaskDescription || !newProject || !currentUser) return;
     
-    const newEntry: TimeEntry = {
-      id: Date.now().toString(),
-      user: "John Doe",
-      project: newProject,
-      task: newTaskDescription,
-      date: new Date().toISOString().split('T')[0],
-      duration: 0,
-      billable: true,
-      status: "pending",
-      isRunning: true,
-    };
+    createTimeEntryMutation.mutate({
+      userId: currentUser.id,
+      projectId: newProject,
+      description: newTaskDescription,
+      startTime: new Date().toISOString(),
+      endTime: null,
+      duration: null,
+      isBillable: true,
+    });
     
-    setEntries([newEntry, ...entries]);
     setNewTaskDescription("");
     setNewProject("");
-    console.log('Started new timer:', newEntry);
   };
 
   const handleAddManualEntry = () => {
-    if (!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime) return;
+    if (!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime || !currentUser) return;
     
     const [startHour, startMin] = manualStartTime.split(':').map(Number);
     const [endHour, endMin] = manualEndTime.split(':').map(Number);
@@ -134,89 +152,93 @@ export function TrackerTable() {
     const durationMinutes = endMinutes - startMinutes;
     
     if (durationMinutes <= 0) {
-      console.error('End time must be after start time');
+      toast({
+        title: "Invalid time range",
+        description: "End time must be after start time",
+        variant: "destructive",
+      });
       return;
     }
     
     const totalSeconds = durationMinutes * 60;
     
-    const newEntry: TimeEntry = {
-      id: Date.now().toString(),
-      user: "John Doe",
-      project: manualProject,
-      task: manualTask,
-      date: manualDate,
-      duration: totalSeconds,
-      billable: manualBillable,
-      status: "pending",
-      isRunning: false,
-    };
+    const startDateTime = new Date(`${manualDate}T${manualStartTime}:00`).toISOString();
+    const endDateTime = new Date(`${manualDate}T${manualEndTime}:00`).toISOString();
     
-    setEntries([newEntry, ...entries]);
+    createTimeEntryMutation.mutate({
+      userId: currentUser.id,
+      projectId: manualProject,
+      description: manualTask,
+      startTime: startDateTime,
+      endTime: endDateTime,
+      duration: totalSeconds,
+      isBillable: manualBillable,
+    });
+    
     setManualTask("");
     setManualProject("");
     setManualDate(new Date().toISOString().split('T')[0]);
     setManualStartTime("");
     setManualEndTime("");
     setManualBillable(true);
-    setManualDialogOpen(false);
-    console.log('Added manual entry:', newEntry);
   };
 
-  const handleStopTimer = (id: string) => {
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? { ...entry, isRunning: false } : entry
-      )
-    );
-    console.log('Stopped timer:', id);
+  const handleStopTimer = (entry: TimeEntry) => {
+    const now = new Date();
+    const startTime = new Date(entry.startTime);
+    const durationSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+    
+    updateTimeEntryMutation.mutate({
+      id: entry.id,
+      data: {
+        endTime: now.toISOString(),
+        duration: durationSeconds,
+      },
+    });
   };
 
-  const handleResumeTimer = (id: string) => {
-    setEntries((prev) =>
-      prev.map((entry) => ({
-        ...entry,
-        isRunning: entry.id === id ? true : false,
-      }))
-    );
-    console.log('Resumed timer:', id);
+  const handleResumeTimer = (entry: TimeEntry) => {
+    updateTimeEntryMutation.mutate({
+      id: entry.id,
+      data: {
+        startTime: new Date().toISOString(),
+        endTime: null,
+        duration: null,
+      },
+    });
   };
 
-  const handleApprove = (id: string) => {
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? { ...entry, status: "approved" as const } : entry
-      )
-    );
-    console.log('Approved entry:', id);
+  const handleDelete = (id: string) => {
+    deleteTimeEntryMutation.mutate(id);
   };
 
-  const handleReject = (id: string) => {
-    setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id ? { ...entry, status: "rejected" as const } : entry
-      )
-    );
-    console.log('Rejected entry:', id);
-  };
+  const runningEntries = entries.filter(e => !e.endTime);
+  const [runningDurations, setRunningDurations] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setEntries((prev) =>
-        prev.map((entry) =>
-          entry.isRunning ? { ...entry, duration: entry.duration + 1 } : entry
-        )
-      );
+      const now = Date.now();
+      const newDurations: Record<string, number> = {};
+      
+      runningEntries.forEach(entry => {
+        const startTime = new Date(entry.startTime).getTime();
+        const elapsedSeconds = Math.floor((now - startTime) / 1000);
+        newDurations[entry.id] = elapsedSeconds;
+      });
+      
+      setRunningDurations(newDurations);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [runningEntries.length]);
 
-  const statusColors = {
-    pending: "outline" as const,
-    approved: "default" as const,
-    rejected: "destructive" as const,
+  const getProjectName = (projectId: string) => {
+    return projects.find(p => p.id === projectId)?.name || "Unknown Project";
   };
+
+  if (isLoading) {
+    return <div className="p-8">Loading...</div>;
+  }
 
   return (
     <div className="space-y-4">
@@ -255,14 +277,16 @@ export function TrackerTable() {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Website Redesign">Website Redesign</SelectItem>
-                  <SelectItem value="Mobile App">Mobile App</SelectItem>
-                  <SelectItem value="API Integration">API Integration</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button
                 onClick={handleStartTimer}
-                disabled={!newTaskDescription || !newProject}
+                disabled={!newTaskDescription || !newProject || !currentUser || createTimeEntryMutation.isPending}
                 data-testid="button-start-new-timer"
               >
                 <Play className="h-4 w-4 mr-2" />
@@ -285,9 +309,11 @@ export function TrackerTable() {
                   <SelectValue placeholder="Project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Website Redesign">Website Redesign</SelectItem>
-                  <SelectItem value="Mobile App">Mobile App</SelectItem>
-                  <SelectItem value="API Integration">API Integration</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Input
@@ -325,7 +351,7 @@ export function TrackerTable() {
               </div>
               <Button
                 onClick={handleAddManualEntry}
-                disabled={!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime}
+                disabled={!manualTask || !manualProject || !manualDate || !manualStartTime || !manualEndTime || !currentUser || createTimeEntryMutation.isPending}
                 data-testid="button-add-manual-entry"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -345,81 +371,76 @@ export function TrackerTable() {
               <TableHead>Date</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead className="w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
-              <TableRow key={entry.id} data-testid={`row-tracker-${entry.id}`}>
-                <TableCell className="font-medium">{entry.task}</TableCell>
-                <TableCell>{entry.project}</TableCell>
-                <TableCell>{entry.date}</TableCell>
-                <TableCell className="font-mono">{formatTime(entry.duration)}</TableCell>
-                <TableCell>
-                  <Badge variant={entry.billable ? "default" : "secondary"}>
-                    {entry.billable ? "Billable" : "Non-billable"}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={statusColors[entry.status]}>{entry.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    {entry.isRunning ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleStopTimer(entry.id)}
-                        data-testid={`button-stop-${entry.id}`}
-                      >
-                        <Square className="h-4 w-4 text-destructive" />
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleResumeTimer(entry.id)}
-                        data-testid={`button-resume-${entry.id}`}
-                      >
-                        <Play className="h-4 w-4 text-chart-2" />
-                      </Button>
-                    )}
-                    {entry.status === "pending" && !entry.isRunning && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleApprove(entry.id)}
-                          data-testid={`button-approve-${entry.id}`}
-                        >
-                          <Check className="h-4 w-4 text-chart-2" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleReject(entry.id)}
-                          data-testid={`button-reject-${entry.id}`}
-                        >
-                          <X className="h-4 w-4 text-chart-4" />
-                        </Button>
-                      </>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" data-testid={`button-entry-menu-${entry.id}`}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem data-testid={`menu-edit-entry-${entry.id}`}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem data-testid={`menu-delete-entry-${entry.id}`}>Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+            {entries.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  No time entries yet. Start tracking your time!
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              entries.map((entry) => {
+                const isRunning = !entry.endTime;
+                const displayDuration = isRunning 
+                  ? (runningDurations[entry.id] || 0)
+                  : (entry.duration || 0);
+                
+                return (
+                  <TableRow key={entry.id} data-testid={`row-tracker-${entry.id}`}>
+                    <TableCell className="font-medium">{entry.description || "No description"}</TableCell>
+                    <TableCell>{getProjectName(entry.projectId)}</TableCell>
+                    <TableCell>{new Date(entry.startTime).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-mono">{formatTime(displayDuration)}</TableCell>
+                    <TableCell>
+                      <Badge variant={entry.isBillable ? "default" : "secondary"}>
+                        {entry.isBillable ? "Billable" : "Non-billable"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {isRunning ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleStopTimer(entry)}
+                            data-testid={`button-stop-${entry.id}`}
+                          >
+                            <Square className="h-4 w-4 text-destructive" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleResumeTimer(entry)}
+                            data-testid={`button-resume-${entry.id}`}
+                          >
+                            <Play className="h-4 w-4 text-chart-2" />
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-entry-menu-${entry.id}`}>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(entry.id)}
+                              data-testid={`menu-delete-entry-${entry.id}`}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>

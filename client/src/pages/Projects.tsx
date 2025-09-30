@@ -3,51 +3,29 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ProjectCard } from "@/components/ProjectCard";
 import { Input } from "@/components/ui/input";
-
-const mockProjects = [
-  {
-    id: "1",
-    name: "Website Redesign",
-    client: "Acme Corporation",
-    status: "active" as const,
-    budget: 50000,
-    budgetUsed: 32500,
-    assignedUsers: 4,
-    totalHours: 120,
-  },
-  {
-    id: "2",
-    name: "Mobile App Development",
-    client: "TechStart Inc",
-    status: "active" as const,
-    budget: 80000,
-    budgetUsed: 45000,
-    assignedUsers: 6,
-    totalHours: 180,
-  },
-  {
-    id: "3",
-    name: "API Integration",
-    client: "DataFlow Ltd",
-    status: "completed" as const,
-    budget: 30000,
-    budgetUsed: 28500,
-    assignedUsers: 3,
-    totalHours: 95,
-  },
-  {
-    id: "4",
-    name: "Marketing Campaign",
-    client: "Brand Co",
-    status: "on-hold" as const,
-    budget: 25000,
-    budgetUsed: 8000,
-    assignedUsers: 2,
-    totalHours: 32,
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import type { Project, Client } from "@shared/schema";
+import { useState } from "react";
 
 export default function Projects() {
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getClientName = (clientId: string) => {
+    return clients.find(c => c.id === clientId)?.name || "Unknown Client";
+  };
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -68,14 +46,28 @@ export default function Projects() {
       <Input
         placeholder="Search projects..."
         className="max-w-sm"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
         data-testid="input-search-projects"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockProjects.map((project) => (
-          <ProjectCard key={project.id} {...project} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="text-center py-8 text-muted-foreground">Loading projects...</div>
+      ) : filteredProjects.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          {searchTerm ? "No projects found matching your search." : "No projects yet. Create your first project!"}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProjects.map((project) => (
+            <ProjectCard 
+              key={project.id} 
+              {...project} 
+              client={getClientName(project.clientId)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
