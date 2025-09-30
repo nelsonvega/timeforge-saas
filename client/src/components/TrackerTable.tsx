@@ -262,90 +262,67 @@ export function TrackerTable() {
           </TabsContent>
           
           <TabsContent value="manual" className="p-4 m-0">
-            <div className="grid gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="manual-task">Task Description</Label>
-                  <Input
-                    id="manual-task"
-                    placeholder="What did you work on?"
-                    value={manualTask}
-                    onChange={(e) => setManualTask(e.target.value)}
-                    data-testid="input-manual-task"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manual-project">Project</Label>
-                  <Select value={manualProject} onValueChange={setManualProject}>
-                    <SelectTrigger id="manual-project" data-testid="select-manual-project">
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Website Redesign">Website Redesign</SelectItem>
-                      <SelectItem value="Mobile App">Mobile App</SelectItem>
-                      <SelectItem value="API Integration">API Integration</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Task description"
+                value={manualTask}
+                onChange={(e) => setManualTask(e.target.value)}
+                data-testid="input-manual-task"
+                className="flex-1"
+              />
+              <Select value={manualProject} onValueChange={setManualProject}>
+                <SelectTrigger className="w-[180px]" data-testid="select-manual-project">
+                  <SelectValue placeholder="Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Website Redesign">Website Redesign</SelectItem>
+                  <SelectItem value="Mobile App">Mobile App</SelectItem>
+                  <SelectItem value="API Integration">API Integration</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+                data-testid="input-manual-date"
+                className="w-[150px]"
+              />
+              <Input
+                type="number"
+                min="0"
+                placeholder="Hours"
+                value={manualHours}
+                onChange={(e) => setManualHours(e.target.value)}
+                data-testid="input-manual-hours"
+                className="w-[80px]"
+              />
+              <Input
+                type="number"
+                min="0"
+                max="59"
+                placeholder="Min"
+                value={manualMinutes}
+                onChange={(e) => setManualMinutes(e.target.value)}
+                data-testid="input-manual-minutes"
+                className="w-[70px]"
+              />
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="manual-billable"
+                  checked={manualBillable}
+                  onCheckedChange={setManualBillable}
+                  data-testid="switch-manual-billable"
+                />
+                <Label htmlFor="manual-billable" className="text-sm">Billable</Label>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="manual-date">Date</Label>
-                  <Input
-                    id="manual-date"
-                    type="date"
-                    value={manualDate}
-                    onChange={(e) => setManualDate(e.target.value)}
-                    data-testid="input-manual-date"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manual-hours">Hours</Label>
-                  <Input
-                    id="manual-hours"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={manualHours}
-                    onChange={(e) => setManualHours(e.target.value)}
-                    data-testid="input-manual-hours"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manual-minutes">Minutes</Label>
-                  <Input
-                    id="manual-minutes"
-                    type="number"
-                    min="0"
-                    max="59"
-                    placeholder="0"
-                    value={manualMinutes}
-                    onChange={(e) => setManualMinutes(e.target.value)}
-                    data-testid="input-manual-minutes"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="manual-billable"
-                    checked={manualBillable}
-                    onCheckedChange={setManualBillable}
-                    data-testid="switch-manual-billable"
-                  />
-                  <Label htmlFor="manual-billable">Billable</Label>
-                </div>
-                <Button
-                  onClick={handleAddManualEntry}
-                  disabled={!manualTask || !manualProject || !manualDate || (!manualHours && !manualMinutes)}
-                  data-testid="button-add-manual-entry"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Entry
-                </Button>
-              </div>
+              <Button
+                onClick={handleAddManualEntry}
+                disabled={!manualTask || !manualProject || !manualDate || (!manualHours && !manualMinutes)}
+                data-testid="button-add-manual-entry"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
             </div>
           </TabsContent>
         </Tabs>
