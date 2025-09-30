@@ -30,10 +30,10 @@ const menuItems = [
     testId: "link-dashboard",
   },
   {
-    title: "Time Entries",
-    url: "/time-entries",
+    title: "Tracker",
+    url: "/tracker",
     icon: Clock,
-    testId: "link-time-entries",
+    testId: "link-tracker",
   },
   {
     title: "Projects",

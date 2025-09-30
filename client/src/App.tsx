@@ -8,7 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import Dashboard from "@/pages/Dashboard";
-import TimeEntries from "@/pages/TimeEntries";
+import Tracker from "@/pages/Tracker";
 import Projects from "@/pages/Projects";
 import Clients from "@/pages/Clients";
 import Team from "@/pages/Team";
@@ -21,7 +21,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/" component={Dashboard} />
-      <Route path="/time-entries" component={TimeEntries} />
+      <Route path="/tracker" component={Tracker} />
       <Route path="/projects" component={Projects} />
       <Route path="/clients" component={Clients} />
       <Route path="/team" component={Team} />
