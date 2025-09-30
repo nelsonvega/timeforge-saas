@@ -2,6 +2,10 @@ import { Clock, DollarSign, FolderOpen, TrendingUp } from "lucide-react";
 import { MetricCard } from "@/components/MetricCard";
 import { TimerWidget } from "@/components/TimerWidget";
 import { TimeEntriesTable } from "@/components/TimeEntriesTable";
+import { TimeDistributionChart } from "@/components/TimeDistributionChart";
+import { WeeklyTrendChart } from "@/components/WeeklyTrendChart";
+import { ProjectHoursChart } from "@/components/ProjectHoursChart";
+import { TeamUtilizationChart } from "@/components/TeamUtilizationChart";
 
 export default function Dashboard() {
   return (
@@ -43,6 +47,16 @@ export default function Dashboard() {
           trend={{ value: 3, isPositive: false }}
           testId="metric-utilization"
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TimeDistributionChart />
+        <WeeklyTrendChart />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ProjectHoursChart />
+        <TeamUtilizationChart />
       </div>
 
       <div className="space-y-4">
