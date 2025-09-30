@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, insertProjectAssignmentSchema } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireRole } from "./middleware/authorization";
+import { requireWorkspace } from "./middleware/workspace";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -29,10 +30,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard
-  app.get('/api/dashboard/metrics', requireRole("admin", "manager"), async (_req, res) => {
+  // Workspaces - These routes don't require workspace context as they're for managing workspaces
+  app.get('/api/workspaces', async (req: any, res) => {
     try {
-      const metrics = await storage.getDashboardMetrics();
+      const workspaces = await storage.getUserWorkspaces(req.user.id);
+      res.json(workspaces);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/workspaces/:id', async (req, res) => {
+    try {
+      const workspace = await storage.getWorkspace(req.params.id);
+      if (!workspace) {
+        return res.status(404).json({ error: "Workspace not found" });
+      }
+      res.json(workspace);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/workspaces', async (req, res) => {
+    try {
+      const validatedData = insertWorkspaceSchema.parse(req.body);
+      const workspace = await storage.createWorkspace(validatedData);
+      res.status(201).json(workspace);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Workspace Memberships
+  app.get('/api/workspace-memberships', requireWorkspace, async (req: any, res) => {
+    try {
+      const memberships = await storage.getWorkspaceMemberships(req.workspaceId);
+      res.json(memberships);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/workspace-memberships', requireWorkspace, async (req: any, res) => {
+    try {
+      const validatedData = insertWorkspaceMembershipSchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
+      const membership = await storage.createWorkspaceMembership(validatedData);
+      res.status(201).json(membership);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Dashboard
+  app.get('/api/dashboard/metrics', requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+    try {
+      const metrics = await storage.getDashboardMetrics(req.workspaceId);
       res.json(metrics);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -40,18 +96,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clients
-  app.get("/api/clients", requireRole("admin", "manager"), async (_req, res) => {
+  app.get("/api/clients", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const clients = await storage.getAllClients();
+      const clients = await storage.getAllClients(req.workspaceId);
       res.json(clients);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const client = await storage.getClient(req.params.id);
+      const client = await storage.getClient(req.workspaceId, req.params.id);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -61,9 +117,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients", requireRole("admin", "manager"), async (req, res) => {
+  app.post("/api/clients", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const validatedData = insertClientSchema.parse(req.body);
+      const validatedData = insertClientSchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
       const client = await storage.createClient(validatedData);
       res.status(201).json(client);
     } catch (error: any) {
@@ -71,9 +130,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.patch("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const client = await storage.updateClient(req.params.id, req.body);
+      const client = await storage.updateClient(req.workspaceId, req.params.id, req.body);
       if (!client) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -83,9 +142,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clients/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.delete("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const success = await storage.deleteClient(req.params.id);
+      const success = await storage.deleteClient(req.workspaceId, req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Client not found" });
       }
@@ -96,18 +155,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Projects
-  app.get("/api/projects", requireRole("admin", "manager"), async (_req, res) => {
+  app.get("/api/projects", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const projects = await storage.getAllProjects();
+      const projects = await storage.getAllProjects(req.workspaceId);
       res.json(projects);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const project = await storage.getProject(req.params.id);
+      const project = await storage.getProject(req.workspaceId, req.params.id);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
@@ -117,18 +176,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/client/:clientId", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/projects/client/:clientId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const projects = await storage.getProjectsByClient(req.params.clientId);
+      const projects = await storage.getProjectsByClient(req.workspaceId, req.params.clientId);
       res.json(projects);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/projects", requireRole("admin", "manager"), async (req, res) => {
+  app.post("/api/projects", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const validatedData = insertProjectSchema.parse(req.body);
+      const validatedData = insertProjectSchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
       const project = await storage.createProject(validatedData);
       res.status(201).json(project);
     } catch (error: any) {
@@ -136,9 +198,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.patch("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const project = await storage.updateProject(req.params.id, req.body);
+      const project = await storage.updateProject(req.workspaceId, req.params.id, req.body);
       if (!project) {
         return res.status(404).json({ error: "Project not found" });
       }
@@ -148,9 +210,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.delete("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const success = await storage.deleteProject(req.params.id);
+      const success = await storage.deleteProject(req.workspaceId, req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Project not found" });
       }
@@ -217,18 +279,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Time Entries
-  app.get("/api/time-entries", async (_req, res) => {
+  app.get("/api/time-entries", requireWorkspace, async (req: any, res) => {
     try {
-      const entries = await storage.getAllTimeEntries();
+      const entries = await storage.getAllTimeEntries(req.workspaceId);
       res.json(entries);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/time-entries/:id", async (req, res) => {
+  app.get("/api/time-entries/:id", requireWorkspace, async (req: any, res) => {
     try {
-      const entry = await storage.getTimeEntry(req.params.id);
+      const entry = await storage.getTimeEntry(req.workspaceId, req.params.id);
       if (!entry) {
         return res.status(404).json({ error: "Time entry not found" });
       }
@@ -238,27 +300,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/time-entries/user/:userId", async (req, res) => {
+  app.get("/api/time-entries/user/:userId", requireWorkspace, async (req: any, res) => {
     try {
-      const entries = await storage.getTimeEntriesByUser(req.params.userId);
+      const entries = await storage.getTimeEntriesByUser(req.workspaceId, req.params.userId);
       res.json(entries);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/time-entries/project/:projectId", async (req, res) => {
+  app.get("/api/time-entries/project/:projectId", requireWorkspace, async (req: any, res) => {
     try {
-      const entries = await storage.getTimeEntriesByProject(req.params.projectId);
+      const entries = await storage.getTimeEntriesByProject(req.workspaceId, req.params.projectId);
       res.json(entries);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/time-entries", async (req, res) => {
+  app.post("/api/time-entries", requireWorkspace, async (req: any, res) => {
     try {
-      const validatedData = insertTimeEntrySchema.parse(req.body);
+      const validatedData = insertTimeEntrySchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
       const entry = await storage.createTimeEntry(validatedData);
       res.status(201).json(entry);
     } catch (error: any) {
@@ -266,9 +331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/time-entries/:id", async (req, res) => {
+  app.patch("/api/time-entries/:id", requireWorkspace, async (req: any, res) => {
     try {
-      const entry = await storage.updateTimeEntry(req.params.id, req.body);
+      const entry = await storage.updateTimeEntry(req.workspaceId, req.params.id, req.body);
       if (!entry) {
         return res.status(404).json({ error: "Time entry not found" });
       }
@@ -278,9 +343,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/time-entries/:id", async (req, res) => {
+  app.delete("/api/time-entries/:id", requireWorkspace, async (req: any, res) => {
     try {
-      const success = await storage.deleteTimeEntry(req.params.id);
+      const success = await storage.deleteTimeEntry(req.workspaceId, req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Time entry not found" });
       }
@@ -291,9 +356,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project Assignments
-  app.post("/api/project-assignments", requireRole("admin", "manager"), async (req, res) => {
+  app.post("/api/project-assignments", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const validatedData = insertProjectAssignmentSchema.parse(req.body);
+      const validatedData = insertProjectAssignmentSchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
       const assignment = await storage.assignUserToProject(validatedData);
       res.status(201).json(assignment);
     } catch (error: any) {
@@ -301,27 +369,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/project-assignments/project/:projectId", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/project-assignments/project/:projectId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const assignments = await storage.getProjectAssignments(req.params.projectId);
+      const assignments = await storage.getProjectAssignments(req.workspaceId, req.params.projectId);
       res.json(assignments);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.get("/api/project-assignments/user/:userId", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/project-assignments/user/:userId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const assignments = await storage.getUserAssignments(req.params.userId);
+      const assignments = await storage.getUserAssignments(req.workspaceId, req.params.userId);
       res.json(assignments);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.delete("/api/project-assignments/:userId/:projectId", requireRole("admin", "manager"), async (req, res) => {
+  app.delete("/api/project-assignments/:userId/:projectId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
     try {
-      const success = await storage.removeUserFromProject(req.params.userId, req.params.projectId);
+      const success = await storage.removeUserFromProject(req.workspaceId, req.params.userId, req.params.projectId);
       if (!success) {
         return res.status(404).json({ error: "Assignment not found" });
       }
