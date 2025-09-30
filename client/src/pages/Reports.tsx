@@ -1,4 +1,5 @@
 import { FileText, Download, Calendar, DollarSign, Users, Briefcase } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -48,10 +49,6 @@ const reports = [
 ];
 
 export default function Reports() {
-  const handleGenerateReport = (reportId: string, reportTitle: string) => {
-    console.log('Generating report:', reportId, reportTitle);
-  };
-
   return (
     <div className="p-8 space-y-6">
       <div>
@@ -77,15 +74,16 @@ export default function Reports() {
                 <CardDescription className="text-sm">{report.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => handleGenerateReport(report.id, report.title)}
-                  data-testid={`button-generate-report-${report.id}`}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Generate Report
-                </Button>
+                <Link href={`/reports/${report.id}`}>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    data-testid={`button-generate-report-${report.id}`}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    View Report
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           );
