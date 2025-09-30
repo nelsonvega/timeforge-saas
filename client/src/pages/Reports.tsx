@@ -1,4 +1,4 @@
-import { FileText, Download, Calendar, DollarSign, Users, Briefcase } from "lucide-react";
+import { FileText, Download, Calendar, DollarSign, Users, Briefcase, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,15 +73,24 @@ export default function Reports() {
                 <CardTitle className="text-base">{report.title}</CardTitle>
                 <CardDescription className="text-sm">{report.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Link href={`/reports/${report.id}`}>
+              <CardContent className="flex gap-2">
+                <Link href={`/reports/${report.id}`} className="flex-1">
                   <Button
                     variant="outline"
+                    className="w-full"
+                    data-testid={`button-view-report-${report.id}`}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                </Link>
+                <Link href={`/reports/${report.id}`} className="flex-1">
+                  <Button
                     className="w-full"
                     data-testid={`button-generate-report-${report.id}`}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    View Report
+                    Generate
                   </Button>
                 </Link>
               </CardContent>
