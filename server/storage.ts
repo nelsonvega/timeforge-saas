@@ -1,5 +1,5 @@
 import type {
-  User, InsertUser,
+  User, InsertUser, UpsertUser,
   Client, InsertClient,
   Project, InsertProject,
   TimeEntry, InsertTimeEntry,
@@ -17,6 +17,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: string): Promise<boolean>;
@@ -72,6 +73,21 @@ export class DbStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const result = await db.insert(users).values(user).returning();
     return result[0];
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async getAllUsers(): Promise<User[]> {
