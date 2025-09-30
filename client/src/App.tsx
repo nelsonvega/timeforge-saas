@@ -17,6 +17,7 @@ import Team from "@/pages/Team";
 import NewTeamMember from "@/pages/NewTeamMember";
 import Reports from "@/pages/Reports";
 import ReportDetail from "@/pages/ReportDetail";
+import TimeSummaryReport from "@/pages/TimeSummaryReport";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/team" component={Team} />
       <Route path="/team/new" component={NewTeamMember} />
       <Route path="/reports" component={Reports} />
+      <Route path="/reports/time-summary" component={TimeSummaryReport} />
       <Route path="/reports/:id" component={ReportDetail} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />

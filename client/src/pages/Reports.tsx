@@ -74,7 +74,7 @@ export default function Reports() {
                 <CardDescription className="text-sm">{report.description}</CardDescription>
               </CardHeader>
               <CardContent className="flex gap-2">
-                <Link href={`/reports/${report.id}`} className="flex-1">
+                <Link href={report.id === "1" ? "/reports/time-summary" : `/reports/${report.id}`} className="flex-1">
                   <Button
                     variant="outline"
                     className="w-full"
@@ -84,7 +84,7 @@ export default function Reports() {
                     View
                   </Button>
                 </Link>
-                <Link href={`/reports/${report.id}`} className="flex-1">
+                <Link href={report.id === "1" ? "/reports/time-summary" : `/reports/${report.id}`} className="flex-1">
                   <Button
                     className="w-full"
                     data-testid={`button-generate-report-${report.id}`}
