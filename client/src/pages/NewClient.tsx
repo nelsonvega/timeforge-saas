@@ -14,16 +14,14 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-
-const existingProjects = [
-  { id: "1", name: "Website Redesign" },
-  { id: "2", name: "Mobile App Development" },
-  { id: "3", name: "Brand Identity" },
-  { id: "4", name: "Marketing Campaign" },
-];
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Client, Project } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function NewClient() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [clientName, setClientName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,21 +31,56 @@ export default function NewClient() {
   const [selectedProject, setSelectedProject] = useState("");
   const [newProjectName, setNewProjectName] = useState("");
 
+  const { data: existingProjects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const createClientMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/clients", data);
+      return await res.json();
+    },
+    onSuccess: async (newClient: Client) => {
+      if (projectMode === "new" && newProjectName) {
+        await apiRequest("POST", "/api/projects", {
+          name: newProjectName,
+          clientId: newClient.id,
+          status: "active",
+        });
+      } else if (projectMode === "existing" && selectedProject) {
+        await apiRequest("PATCH", `/api/projects/${selectedProject}`, {
+          clientId: newClient.id,
+        });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      
+      toast({
+        title: "Client created",
+        description: `${clientName} has been added successfully.`,
+      });
+      
+      setLocation("/clients");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create client",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateClient = () => {
-    const projectData = projectMode === "existing" ? 
-      existingProjects.find(p => p.id === selectedProject)?.name : 
-      projectMode === "new" ? newProjectName : null;
-    
-    console.log('Creating client:', {
-      clientName,
-      email,
-      phone,
-      address,
-      notes,
-      project: projectData,
+    createClientMutation.mutate({
+      name: clientName,
+      email: email || null,
+      phone: phone || null,
+      address: address || null,
+      notes: notes || null,
+      status: "active",
     });
-    
-    setLocation("/clients");
   };
 
   const isValid = clientName;
@@ -311,11 +344,11 @@ export default function NewClient() {
             <Button
               size="lg"
               onClick={handleCreateClient}
-              disabled={!isValid}
+              disabled={!isValid || createClientMutation.isPending}
               data-testid="button-create-client"
               className="px-8"
             >
-              Create Client
+              {createClientMutation.isPending ? "Creating..." : "Create Client"}
             </Button>
           </div>
         </div>

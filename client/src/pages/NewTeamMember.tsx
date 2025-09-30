@@ -13,13 +13,10 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const existingProjects = [
-  { id: "1", name: "Website Redesign" },
-  { id: "2", name: "Mobile App Development" },
-  { id: "3", name: "Brand Identity" },
-  { id: "4", name: "Marketing Campaign" },
-];
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { User as UserType, Project } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 const roles = [
   "Developer",
@@ -34,32 +31,70 @@ const roles = [
 
 export default function NewTeamMember() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
-  const [department, setDepartment] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [projectMode, setProjectMode] = useState<"none" | "assign">("none");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
+  const { data: existingProjects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects"],
+  });
+
+  const createTeamMemberMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/users", {
+        name,
+        email,
+        username,
+        password,
+        role,
+        hourlyRate: hourlyRate || null,
+      });
+      const newUser: UserType = await res.json();
+      
+      if (projectMode === "assign" && selectedProjects.length > 0) {
+        await Promise.all(
+          selectedProjects.map(projectId =>
+            apiRequest("POST", "/api/project-assignments", {
+              userId: newUser.id,
+              projectId,
+            })
+          )
+        );
+      }
+      
+      return newUser;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/project-assignments"] });
+      
+      toast({
+        title: "Team member added",
+        description: `${name} has been added successfully.`,
+      });
+      
+      setLocation("/team");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add team member",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateTeamMember = () => {
-    const assignedProjects = projectMode === "assign" ? 
-      selectedProjects.map(id => existingProjects.find(p => p.id === id)?.name) : 
-      [];
-    
-    console.log('Creating team member:', {
-      name,
-      email,
-      role,
-      department,
-      hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
-      projects: assignedProjects,
-    });
-    
-    setLocation("/team");
+    createTeamMemberMutation.mutate({});
   };
 
-  const isValid = name && email && role;
+  const isValid = name && email && username && password && role;
 
   const toggleProject = (projectId: string) => {
     setSelectedProjects(prev => 
@@ -136,8 +171,31 @@ export default function NewTeamMember() {
                     onChange={(e) => setEmail(e.target.value)}
                     data-testid="input-member-email"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    placeholder="sarahj"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    data-testid="input-member-username"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    data-testid="input-member-password"
+                  />
                   <p className="text-xs text-muted-foreground">
-                    An invitation will be sent to this email
+                    Create a password for this account
                   </p>
                 </div>
               </div>
@@ -153,7 +211,7 @@ export default function NewTeamMember() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <Label className="text-base font-semibold">
-                      Role & Department
+                      Role
                     </Label>
                     <Badge variant="destructive" className="text-xs">Required</Badge>
                   </div>
@@ -178,17 +236,6 @@ export default function NewTeamMember() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="department">Department (Optional)</Label>
-                  <Input
-                    id="department"
-                    placeholder="e.g., Engineering, Design, Sales"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    data-testid="input-member-department"
-                  />
                 </div>
               </div>
             </CardContent>
@@ -239,7 +286,7 @@ export default function NewTeamMember() {
                       <Badge variant="secondary" className="text-xs">Optional</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Assign this member to projects
+                      Assign this team member to projects
                     </p>
                   </div>
 
@@ -251,16 +298,16 @@ export default function NewTeamMember() {
                           ? "border-primary bg-primary/5"
                           : "border-border hover-elevate"
                       }`}
-                      data-testid="button-no-assignment-mode"
+                      data-testid="button-no-project-assignment"
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <CheckCircle2 className={`h-4 w-4 ${
                           projectMode === "none" ? "text-primary" : "text-muted-foreground"
                         }`} />
-                        <span className="font-medium">No Assignment</span>
+                        <span className="font-medium">No Projects</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Assign projects later
+                        Assign later
                       </p>
                     </button>
 
@@ -271,16 +318,16 @@ export default function NewTeamMember() {
                           ? "border-primary bg-primary/5"
                           : "border-border hover-elevate"
                       }`}
-                      data-testid="button-assign-projects-mode"
+                      data-testid="button-assign-projects"
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <CheckCircle2 className={`h-4 w-4 ${
                           projectMode === "assign" ? "text-primary" : "text-muted-foreground"
                         }`} />
-                        <span className="font-medium">Assign to Projects</span>
+                        <span className="font-medium">Assign Projects</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Select existing projects
+                        Select projects
                       </p>
                     </button>
                   </div>
@@ -288,12 +335,12 @@ export default function NewTeamMember() {
                   {projectMode === "assign" && (
                     <div className="space-y-2">
                       <Label>Select Projects</Label>
-                      <div className="space-y-2">
+                      <div className="grid gap-2 max-h-64 overflow-y-auto p-4 border rounded-lg">
                         {existingProjects.map((project) => (
                           <button
                             key={project.id}
                             onClick={() => toggleProject(project.id)}
-                            className={`w-full p-3 rounded-lg border-2 transition-all text-left flex items-center gap-3 ${
+                            className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
                               selectedProjects.includes(project.id)
                                 ? "border-primary bg-primary/5"
                                 : "border-border hover-elevate"
@@ -307,9 +354,6 @@ export default function NewTeamMember() {
                           </button>
                         ))}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedProjects.length} project{selectedProjects.length !== 1 ? 's' : ''} selected
-                      </p>
                     </div>
                   )}
                 </div>
@@ -326,11 +370,11 @@ export default function NewTeamMember() {
             <Button
               size="lg"
               onClick={handleCreateTeamMember}
-              disabled={!isValid}
+              disabled={!isValid || createTeamMemberMutation.isPending}
               data-testid="button-create-member"
               className="px-8"
             >
-              Add Team Member
+              {createTeamMemberMutation.isPending ? "Adding..." : "Add Team Member"}
             </Button>
           </div>
         </div>

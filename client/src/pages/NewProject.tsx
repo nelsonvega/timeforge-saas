@@ -13,34 +13,67 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const existingClients = [
-  { id: "1", name: "Acme Corporation" },
-  { id: "2", name: "TechStart Inc" },
-  { id: "3", name: "DataFlow Ltd" },
-  { id: "4", name: "Brand Co" },
-];
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Client, Project } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function NewProject() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [projectName, setProjectName] = useState("");
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClient, setSelectedClient] = useState("");
   const [newClientName, setNewClientName] = useState("");
   const [budget, setBudget] = useState("");
 
+  const { data: existingClients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: any) => {
+      let clientId = selectedClient;
+      
+      if (clientMode === "new" && newClientName) {
+        const clientRes = await apiRequest("POST", "/api/clients", {
+          name: newClientName,
+          status: "active",
+        });
+        const newClient: Client = await clientRes.json();
+        clientId = newClient.id;
+      }
+      
+      const res = await apiRequest("POST", "/api/projects", {
+        name: projectName,
+        clientId,
+        budget: budget ? budget : null,
+        status: "active",
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      
+      toast({
+        title: "Project created",
+        description: `${projectName} has been added successfully.`,
+      });
+      
+      setLocation("/projects");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create project",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateProject = () => {
-    const clientName = clientMode === "existing" ? 
-      existingClients.find(c => c.id === selectedClient)?.name : 
-      newClientName;
-    
-    console.log('Creating project:', {
-      projectName,
-      client: clientName,
-      budget: budget ? parseFloat(budget) : undefined,
-    });
-    
-    setLocation("/projects");
+    createProjectMutation.mutate({});
   };
 
   const isValid = projectName && (
@@ -187,7 +220,7 @@ export default function NewProject() {
                         data-testid="input-new-client-name"
                       />
                       <p className="text-xs text-muted-foreground">
-                        A new client will be created with this name
+                        A new client will be created and linked to this project
                       </p>
                     </div>
                   )}
@@ -206,21 +239,26 @@ export default function NewProject() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Label htmlFor="budget" className="text-base font-semibold">
-                        Project Budget
+                        Budget
                       </Label>
                       <Badge variant="secondary" className="text-xs">Optional</Badge>
                     </div>
-                    <Input
-                      id="budget"
-                      type="number"
-                      placeholder="50000"
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      data-testid="input-project-budget"
-                      className="text-base"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        id="budget"
+                        type="number"
+                        placeholder="0.00"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        data-testid="input-project-budget"
+                        className="pl-7"
+                      />
+                    </div>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Set a budget to track spending and utilization
+                      Set a budget limit for this project (optional)
                     </p>
                   </div>
                 </div>
@@ -237,11 +275,11 @@ export default function NewProject() {
             <Button
               size="lg"
               onClick={handleCreateProject}
-              disabled={!isValid}
+              disabled={!isValid || createProjectMutation.isPending}
               data-testid="button-create-project"
               className="px-8"
             >
-              Create Project
+              {createProjectMutation.isPending ? "Creating..." : "Create Project"}
             </Button>
           </div>
         </div>
