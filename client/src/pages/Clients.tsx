@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ClientCard } from "@/components/ClientCard";
 import { Input } from "@/components/ui/input";
@@ -52,10 +53,12 @@ export default function Clients() {
             Manage your client relationships and contacts
           </p>
         </div>
-        <Button data-testid="button-add-client">
-          <Plus className="h-4 w-4 mr-2" />
-          New Client
-        </Button>
+        <Link href="/clients/new">
+          <Button data-testid="button-add-client">
+            <Plus className="h-4 w-4 mr-2" />
+            New Client
+          </Button>
+        </Link>
       </div>
 
       <Input
