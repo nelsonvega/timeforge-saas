@@ -1,7 +1,7 @@
 import { useAuth } from "./useAuth";
 
 export function usePermissions() {
-  const { user } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   const userRole = user?.role || "member";
 
@@ -14,6 +14,9 @@ export function usePermissions() {
   const canAccessSettings = true;
 
   return {
+    user,
+    isLoading,
+    isAuthenticated,
     canAccessDashboard,
     canAccessProjects,
     canAccessClients,

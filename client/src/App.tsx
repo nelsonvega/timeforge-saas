@@ -83,8 +83,7 @@ function Router() {
 
 function AppContent() {
   const [location] = useLocation();
-  const { isAuthenticated, isLoading } = useAuth();
-  const { canAccessDashboard } = usePermissions();
+  const { isAuthenticated, isLoading, canAccessDashboard } = usePermissions();
   const isLoginPage = location === "/login";
 
   if (isLoading) {
