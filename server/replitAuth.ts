@@ -1,5 +1,7 @@
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import bcrypt from "bcrypt";
 
 import passport from "passport";
 import session from "express-session";
@@ -72,6 +74,40 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Local Strategy for username/password
+  passport.use(new LocalStrategy(
+    { usernameField: 'email' },
+    async (email, password, done) => {
+      try {
+        const user = await storage.getUserByEmail(email);
+        
+        if (!user || !user.password) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+
+        // Create session user object for local auth
+        const sessionUser = {
+          id: user.id,
+          email: user.email,
+          name: user.name || `${user.firstName} ${user.lastName}`,
+          profileImageUrl: user.profileImageUrl,
+          role: user.role,
+          isLocalAuth: true,
+        };
+
+        return done(null, sessionUser);
+      } catch (error) {
+        return done(error);
+      }
+    }
+  ));
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -101,6 +137,79 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  // Local auth endpoints
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ error: 'Authentication error' });
+      }
+      if (!user) {
+        return res.status(401).json({ error: info?.message || 'Invalid credentials' });
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Login error' });
+        }
+        return res.json({ success: true, user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          role: user.role,
+        }});
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName } = req.body;
+
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const user = await storage.createUser({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`,
+        role: 'member',
+      });
+
+      req.logIn({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        profileImageUrl: user.profileImageUrl,
+        role: user.role,
+        isLocalAuth: true,
+      }, (err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Login error after registration' });
+        }
+        res.status(201).json({ success: true, user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImageUrl: user.profileImageUrl,
+          role: user.role,
+        }});
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // OAuth endpoints
   app.get("/api/login", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
@@ -116,13 +225,21 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/logout", (req, res) => {
+    const isLocalAuth = (req.user as any)?.isLocalAuth;
+    
     req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+      if (isLocalAuth) {
+        // Local auth - just redirect to login
+        res.redirect("/login");
+      } else {
+        // OAuth - redirect to OIDC logout
+        res.redirect(
+          client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID!,
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          }).href
+        );
+      }
     });
   });
 }
@@ -130,7 +247,34 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const sessionUser = req.user as any;
 
-  if (!req.isAuthenticated() || !sessionUser.expires_at) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Handle local auth (username/password)
+  if (sessionUser.isLocalAuth) {
+    try {
+      const fullUser = await storage.getUser(sessionUser.id);
+      
+      if (!fullUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      sessionUser.role = fullUser.role;
+      sessionUser.id = fullUser.id;
+      sessionUser.email = fullUser.email;
+      sessionUser.name = fullUser.name;
+      sessionUser.profileImageUrl = fullUser.profileImageUrl;
+      
+      return next();
+    } catch (error) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+  }
+
+  // Handle OAuth
+  if (!sessionUser.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
