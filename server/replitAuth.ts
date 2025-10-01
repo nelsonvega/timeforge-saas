@@ -163,9 +163,9 @@ export async function setupAuth(app: Express) {
 
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, plan, tenantName } = req.body;
 
-      if (!email || !password || !firstName || !lastName) {
+      if (!email || !password || !firstName || !lastName || !plan || !tenantName) {
         return res.status(400).json({ error: 'All fields are required' });
       }
 
@@ -182,7 +182,32 @@ export async function setupAuth(app: Express) {
         firstName,
         lastName,
         name: `${firstName} ${lastName}`,
-        role: 'member',
+        role: 'admin',
+      });
+
+      // Create tenant - always start with free plan, upgrade after payment
+      const tenantSlug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const tenant = await storage.createTenant({
+        name: tenantName,
+        slug: tenantSlug,
+        plan: 'free', // Always start with free, upgrade after payment confirmation
+        status: 'active',
+      });
+
+      // Create default workspace
+      const workspace = await storage.createWorkspace({
+        tenantId: tenant.id,
+        name: 'Main Workspace',
+        slug: 'main',
+        timezone: 'UTC',
+        status: 'active',
+      });
+
+      // Add user as admin of the workspace
+      await storage.createWorkspaceMembership({
+        workspaceId: workspace.id,
+        userId: user.id,
+        role: 'admin',
       });
 
       req.logIn({
@@ -192,17 +217,26 @@ export async function setupAuth(app: Express) {
         profileImageUrl: user.profileImageUrl,
         role: user.role,
         isLocalAuth: true,
+        tenantId: tenant.id,
       }, (err) => {
         if (err) {
           return res.status(500).json({ error: 'Login error after registration' });
         }
-        res.status(201).json({ success: true, user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          profileImageUrl: user.profileImageUrl,
-          role: user.role,
-        }});
+        res.status(201).json({ 
+          success: true, 
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            profileImageUrl: user.profileImageUrl,
+            role: user.role,
+          },
+          tenant: {
+            id: tenant.id,
+            plan: tenant.plan,
+          },
+          selectedPlan: plan, // Return the plan they selected for payment flow
+        });
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

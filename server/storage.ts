@@ -38,6 +38,7 @@ export interface IStorage {
   getAllTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined>;
+  updateTenantStripeInfo(id: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<Tenant | undefined>;
 
   // Workspaces
   getWorkspace(id: string): Promise<Workspace | undefined>;
@@ -157,6 +158,19 @@ export class DbStorage implements IStorage {
 
   async updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant | undefined> {
     const result = await db.update(tenants).set(tenant).where(eq(tenants.id, id)).returning();
+    return result[0];
+  }
+
+  async updateTenantStripeInfo(id: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<Tenant | undefined> {
+    const result = await db.update(tenants)
+      .set({ 
+        stripeCustomerId, 
+        stripeSubscriptionId,
+        plan: 'paid',
+        updatedAt: new Date() 
+      })
+      .where(eq(tenants.id, id))
+      .returning();
     return result[0];
   }
 

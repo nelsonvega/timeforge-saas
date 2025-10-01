@@ -6,11 +6,89 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+// Lazy load Stripe only when needed
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : null;
+
+function PaymentForm({ tenantId, onSuccess }: { tenantId: string; onSuccess: () => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+      });
+
+      if (error) {
+        toast({
+          title: "Payment Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Confirm payment on backend (userId is derived from authenticated session)
+        await apiRequest("POST", "/api/confirm-payment", {
+          paymentIntentId: paymentIntent.id,
+          tenantId,
+        });
+
+        toast({
+          title: "Payment Successful",
+          description: "Your account has been upgraded to the paid plan!",
+        });
+
+        onSuccess();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Payment Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement />
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={!stripe || isProcessing}
+        data-testid="button-complete-payment"
+      >
+        {isProcessing ? "Processing..." : "Complete Payment"}
+      </Button>
+    </form>
+  );
+}
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
+  const [clientSecret, setClientSecret] = useState("");
+  const [pendingTenantId, setPendingTenantId] = useState("");
   const { toast } = useToast();
   
   const [loginData, setLoginData] = useState({
@@ -23,6 +101,8 @@ export default function Login() {
     lastName: "",
     email: "",
     password: "",
+    tenantName: "",
+    plan: "free",
   });
 
   const handleGoogleLogin = () => {
@@ -52,8 +132,23 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await apiRequest("POST", "/api/auth/register", registerData);
-      window.location.href = "/";
+      const response: any = await apiRequest("POST", "/api/auth/register", registerData);
+      
+      // If paid plan selected, show payment form
+      if (response.selectedPlan === "paid") {
+        setPendingTenantId(response.tenant.id);
+        
+        // Create payment intent (userId is derived from authenticated session on backend)
+        const paymentResponse: any = await apiRequest("POST", "/api/create-payment-intent", {
+          tenantId: response.tenant.id,
+        });
+        
+        setClientSecret(paymentResponse.clientSecret);
+        setShowPayment(true);
+      } else {
+        // Free plan - redirect to app
+        window.location.href = "/";
+      }
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -64,6 +159,40 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  const handlePaymentSuccess = () => {
+    window.location.href = "/";
+  };
+
+  if (showPayment && clientSecret && stripePromise) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="mx-auto h-16 w-16 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-lg">
+              <Clock className="h-9 w-9 text-primary-foreground" />
+            </div>
+            <h1 className="text-3xl font-bold">Complete Your Payment</h1>
+            <p className="text-muted-foreground mt-2">
+              Secure payment powered by Stripe
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">Paid Plan - $15</CardTitle>
+              <CardDescription>One-time payment for premium features</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <PaymentForm tenantId={pendingTenantId} onSuccess={handlePaymentSuccess} />
+              </Elements>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -162,6 +291,19 @@ export default function Login() {
 
               <TabsContent value="signup">
                 <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-company">Company Name</Label>
+                    <Input
+                      id="signup-company"
+                      type="text"
+                      placeholder="Acme Inc."
+                      value={registerData.tenantName}
+                      onChange={(e) => setRegisterData({ ...registerData, tenantName: e.target.value })}
+                      required
+                      data-testid="input-signup-company"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-firstname">First Name</Label>
@@ -188,6 +330,7 @@ export default function Login() {
                       />
                     </div>
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
@@ -200,6 +343,7 @@ export default function Login() {
                       data-testid="input-signup-email"
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <Input
@@ -215,13 +359,49 @@ export default function Login() {
                       Must be at least 8 characters
                     </p>
                   </div>
+
+                  <div className="space-y-3">
+                    <Label>Choose Your Plan</Label>
+                    <RadioGroup 
+                      value={registerData.plan} 
+                      onValueChange={(value) => setRegisterData({ ...registerData, plan: value })}
+                      data-testid="radio-plan"
+                    >
+                      <div className="flex items-start space-x-3 rounded-md border p-4 hover-elevate">
+                        <RadioGroupItem value="free" id="plan-free" data-testid="radio-plan-free" />
+                        <div className="flex-1">
+                          <Label htmlFor="plan-free" className="font-semibold cursor-pointer">
+                            Free Plan
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            Basic time tracking features
+                          </p>
+                        </div>
+                        <div className="text-lg font-bold">$0</div>
+                      </div>
+
+                      <div className="flex items-start space-x-3 rounded-md border p-4 hover-elevate">
+                        <RadioGroupItem value="paid" id="plan-paid" data-testid="radio-plan-paid" />
+                        <div className="flex-1">
+                          <Label htmlFor="plan-paid" className="font-semibold cursor-pointer">
+                            Paid Plan
+                          </Label>
+                          <p className="text-sm text-muted-foreground">
+                            Advanced reporting and team features
+                          </p>
+                        </div>
+                        <div className="text-lg font-bold">$15</div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
                   <Button
                     type="submit"
                     className="w-full"
                     disabled={isLoading}
                     data-testid="button-signup"
                   >
-                    {isLoading ? "Creating account..." : "Create Account"}
+                    {isLoading ? "Creating account..." : registerData.plan === "paid" ? "Continue to Payment" : "Create Account"}
                   </Button>
                 </form>
 

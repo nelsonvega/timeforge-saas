@@ -1,10 +1,21 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import Stripe from "stripe";
 import { storage } from "./storage";
 import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireRole } from "./middleware/authorization";
 import { requireWorkspace } from "./middleware/workspace";
+
+// Lazy load Stripe only when needed
+function getStripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-06-20",
+  });
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -12,7 +23,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Protect all /api routes except auth-related ones
   app.use('/api', (req, res, next) => {
-    const publicPaths = ['/login', '/callback', '/logout'];
+    const publicPaths = ['/login', '/callback', '/logout', '/auth/login', '/auth/register'];
     if (publicPaths.includes(req.path)) {
       return next();
     }
@@ -394,6 +405,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Assignment not found" });
       }
       res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Stripe payment routes (require authentication)
+  app.post("/api/create-payment-intent", isAuthenticated, async (req: any, res) => {
+    try {
+      const stripe = getStripeClient();
+      const { tenantId } = req.body;
+      const userId = req.user.id; // Get from authenticated session
+      
+      if (!tenantId) {
+        return res.status(400).json({ error: 'Tenant ID is required' });
+      }
+
+      // Verify authenticated user owns this tenant (is admin)
+      const memberships = await storage.getUserMemberships(userId);
+      const workspaces = await storage.getWorkspacesByTenant(tenantId);
+      
+      const isAdminOfTenant = memberships.some(m => 
+        workspaces.some(w => w.id === m.workspaceId && m.role === 'admin')
+      );
+      
+      if (!isAdminOfTenant) {
+        return res.status(403).json({ error: 'Not authorized to manage this tenant' });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ error: 'Tenant not found' });
+      }
+
+      // Create payment intent for $15
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: 1500, // $15.00 in cents
+        currency: "usd",
+        metadata: {
+          tenantId: tenant.id,
+          userId: userId,
+        },
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/confirm-payment", isAuthenticated, async (req: any, res) => {
+    try {
+      const stripe = getStripeClient();
+      const { paymentIntentId, tenantId } = req.body;
+      const userId = req.user.id; // Get from authenticated session
+      
+      if (!paymentIntentId || !tenantId) {
+        return res.status(400).json({ error: 'Payment Intent ID and Tenant ID are required' });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      // Verify payment intent belongs to this tenant
+      if (paymentIntent.metadata.tenantId !== tenantId) {
+        return res.status(403).json({ error: 'Payment Intent does not match tenant' });
+      }
+
+      // Verify authenticated user is authorized
+      if (paymentIntent.metadata.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to confirm this payment' });
+      }
+      
+      if (paymentIntent.status === 'succeeded') {
+        // Create customer if needed
+        let customerId = paymentIntent.customer as string;
+        if (!customerId) {
+          const customer = await stripe.customers.create({
+            metadata: { tenantId },
+          });
+          customerId = customer.id;
+        }
+
+        // Update tenant with Stripe info and upgrade to paid plan
+        await storage.updateTenantStripeInfo(tenantId, customerId);
+        
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: 'Payment not successful' });
+      }
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

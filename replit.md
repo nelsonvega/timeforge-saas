@@ -86,14 +86,25 @@ Preferred communication style: Simple, everyday language.
 - Role-based permissions moved from global `users.role` to per-workspace `workspace_memberships.role`
 - Users can belong to multiple workspaces with different roles in each
 
+**Plan & Subscription Management:**
+- Two plan types: "free" and "paid" ($15 one-time payment)
+- Tenant-level plan assignment stored in `tenants.plan` field
+- Stripe integration for payment processing (via Stripe Elements)
+- Payment flow: Register → Select Plan → (If paid) Complete Payment → Create Account
+- Tenants table includes Stripe customer/subscription tracking: `stripeCustomerId`, `stripeSubscriptionId`
+- Free plan users skip payment, paid plan users complete Stripe checkout during signup
+- Registration creates: User (as admin) → Tenant (with plan) → Default Workspace → Workspace Membership
+
 ### Authentication and Authorization Mechanisms
 
 **Authentication Implementation:**
-- Replit Auth with OAuth 2.0 / OpenID Connect (supports Google, GitHub, Apple, X, and email/password)
-- Session-based authentication using Passport.js with openid-client strategy
+- **Dual Authentication System**: Custom email/password login AND Google OAuth via Replit Auth
+- **Local Authentication**: Passport.js Local Strategy with bcrypt password hashing (10 rounds)
+- **OAuth Authentication**: Replit Auth with OAuth 2.0 / OpenID Connect (Google, GitHub, Apple, X)
+- Session-based authentication using Passport.js with both strategies
 - PostgreSQL session store via connect-pg-simple with 7-day session TTL
-- Automatic session refresh with refresh tokens to maintain user sessions
-- Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`
+- Automatic session refresh with refresh tokens for OAuth sessions
+- Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`, `/auth/login`, `/auth/register`
 
 **Role-Based Access Control (RBAC):**
 - Three role levels: `admin`, `manager`, and `member`
@@ -165,3 +176,10 @@ Preferred communication style: Simple, everyday language.
 **Form Management:**
 - React Hook Form (@hookform/resolvers) for form state and validation
 - Zod schemas for validation rules shared between client and server
+
+**Payment Processing:**
+- Stripe (@stripe/stripe-js, @stripe/react-stripe-js) for payment collection
+- Stripe Elements for secure card input and payment confirmation
+- Payment Intent API for one-time payments ($15 paid plan)
+- Client-side payment confirmation with redirect_if_required flow
+- Backend payment verification and tenant upgrade on successful payment
