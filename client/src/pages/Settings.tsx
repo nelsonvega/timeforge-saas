@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,14 +11,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Settings() {
+  const { canAccessSettings, isLoading } = usePermissions();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !canAccessSettings) {
+      setLocation("/tracker");
+    }
+  }, [canAccessSettings, isLoading, setLocation]);
+
+  if (isLoading || !canAccessSettings) {
+    return null;
+  }
+
   return (
     <div className="p-8 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your tenant configuration and preferences
+          Manage your tenant configuration and preferences (Paid Plan Feature)
         </p>
       </div>
 

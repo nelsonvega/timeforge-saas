@@ -1,9 +1,22 @@
 import { useAuth } from "./useAuth";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useQuery } from "@tanstack/react-query";
 
 export function usePermissions() {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { selectedWorkspace, isLoading: workspaceContextLoading } = useWorkspace();
+
+  // Fetch detailed workspace info including tenant plan
+  const { data: workspaceDetails, isFetching: workspaceFetching } = useQuery({
+    queryKey: [`/api/workspaces/${selectedWorkspace?.id}`],
+    enabled: !!selectedWorkspace?.id,
+  });
 
   const userRole = user?.role || "member";
+  const tenantPlan = (workspaceDetails as any)?.tenant?.plan;
+  
+  // Combined loading state - wait for auth, workspace context initialization, and workspace details
+  const isLoading = authLoading || workspaceContextLoading || !selectedWorkspace?.id || workspaceFetching;
 
   const canAccessDashboard = userRole === "admin" || userRole === "manager";
   const canAccessProjects = userRole === "admin" || userRole === "manager";
@@ -11,7 +24,8 @@ export function usePermissions() {
   const canAccessTeam = userRole === "admin" || userRole === "manager";
   const canAccessReports = userRole === "admin" || userRole === "manager";
   const canAccessTracker = true;
-  const canAccessSettings = true;
+  // Only grant settings access if we have loaded the plan and it's paid
+  const canAccessSettings = tenantPlan === "paid";
 
   return {
     user,
@@ -25,6 +39,7 @@ export function usePermissions() {
     canAccessTracker,
     canAccessSettings,
     userRole,
+    tenantPlan,
     isAdmin: userRole === "admin",
     isManager: userRole === "manager",
     isMember: userRole === "member",

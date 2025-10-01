@@ -115,8 +115,13 @@ Preferred communication style: Simple, everyday language.
 
 **Role Permissions:**
 - **Admin & Manager**: Full access to dashboard, projects, clients, team, and reports
-- **Member**: Access restricted to time tracker and settings only
+- **Member**: Access restricted to time tracker only (and settings for paid plans)
 - Time tracking functionality available to all roles
+
+**Plan-Based Feature Access:**
+- **Free Plan**: Access to tracker only
+- **Paid Plan**: Access to tracker and settings
+- Settings page is hidden from free plan users in the sidebar
 
 **Database Schema:**
 - `sessions` table for session persistence with expiration index

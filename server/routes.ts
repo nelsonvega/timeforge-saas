@@ -13,7 +13,7 @@ function getStripeClient() {
     throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
   }
   return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-06-20",
+    apiVersion: "2025-09-30.clover" as any,
   });
 }
 
@@ -51,13 +51,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/workspaces/:id', async (req, res) => {
+  app.get('/api/workspaces/:id', async (req: any, res) => {
     try {
       const workspace = await storage.getWorkspace(req.params.id);
       if (!workspace) {
         return res.status(404).json({ error: "Workspace not found" });
       }
-      res.json(workspace);
+      
+      // Verify user is a member of this workspace
+      const membership = await storage.getWorkspaceMembership(req.params.id, req.user.id);
+      if (!membership) {
+        return res.status(403).json({ error: "Access denied. Not a member of this workspace" });
+      }
+      
+      // Include tenant information with plan
+      const tenant = await storage.getTenant(workspace.tenantId);
+      
+      res.json({
+        ...workspace,
+        tenant: tenant ? {
+          id: tenant.id,
+          name: tenant.name,
+          plan: tenant.plan,
+        } : null,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
