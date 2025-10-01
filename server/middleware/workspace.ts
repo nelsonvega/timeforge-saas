@@ -21,6 +21,7 @@ export async function requireWorkspace(req: any, res: Response, next: NextFuncti
 
     req.workspaceId = workspaceId;
     req.workspaceMembership = membership;
+    req.userRole = membership.role;
     
     next();
   } catch (error: any) {

@@ -14,6 +14,7 @@ describe('Middleware - Workspace Validation', () => {
     it('should validate workspace header is present', async () => {
       const req = {
         headers: {},
+        query: {},
         user: { id: 'user1' },
       } as unknown as Request;
       
@@ -43,6 +44,7 @@ describe('Middleware - Workspace Validation', () => {
 
       const req = {
         headers: { 'x-workspace-id': workspace.id },
+        query: {},
         user: { id: user.id },
       } as unknown as Request;
       
@@ -69,6 +71,7 @@ describe('Middleware - Workspace Validation', () => {
 
       const req = {
         headers: { 'x-workspace-id': workspace.id },
+        query: {},
         user: { id: user.id },
       } as unknown as Request;
       
@@ -98,6 +101,7 @@ describe('Middleware - Workspace Validation', () => {
 
       const req = {
         headers: { 'x-workspace-id': workspace.id },
+        query: {},
         user: { id: user.id },
       } as unknown as Request;
       

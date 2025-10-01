@@ -63,7 +63,7 @@ describe('Middleware - Authorization', () => {
       expect(next).not.toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({
-        message: 'Access denied. Insufficient permissions.',
+        message: 'Access denied. Insufficient permissions for this workspace.',
       });
     });
 
@@ -89,11 +89,13 @@ describe('Middleware - Authorization', () => {
 
     it('should allow multiple roles', () => {
       const adminReq = {
-        userRole: 'admin',
+        user: { id: '1', role: 'admin' },
+        workspaceMembership: { role: 'admin' },
       } as unknown as Request;
       
       const managerReq = {
-        userRole: 'manager',
+        user: { id: '2', role: 'manager' },
+        workspaceMembership: { role: 'manager' },
       } as unknown as Request;
       
       const res = {
@@ -112,6 +114,44 @@ describe('Middleware - Authorization', () => {
       expect(next).toHaveBeenCalledTimes(2);
       
       expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('should fallback to user.role when no workspace membership exists', () => {
+      const adminReq = {
+        user: { id: '1', role: 'admin' },
+      } as unknown as Request;
+      
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as unknown as Response;
+      
+      const next = vi.fn() as NextFunction;
+
+      const middleware = requireRole('admin');
+      middleware(adminReq, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('should block when no workspace membership and user role insufficient', () => {
+      const memberReq = {
+        user: { id: '1', role: 'member' },
+      } as unknown as Request;
+      
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as unknown as Response;
+      
+      const next = vi.fn() as NextFunction;
+
+      const middleware = requireRole('admin');
+      middleware(memberReq, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
     });
   });
 });
