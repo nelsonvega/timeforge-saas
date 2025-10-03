@@ -9,14 +9,15 @@ export function usePermissions() {
   // Fetch detailed workspace info including tenant plan
   const { data: workspaceDetails, isFetching: workspaceFetching } = useQuery({
     queryKey: [`/api/workspaces/${selectedWorkspace?.id}`],
-    enabled: !!selectedWorkspace?.id,
+    enabled: !!selectedWorkspace?.id && isAuthenticated,
   });
 
   const userRole = user?.role || "member";
   const tenantPlan = (workspaceDetails as any)?.tenant?.plan;
   
-  // Combined loading state - wait for auth, workspace context initialization, and workspace details
-  const isLoading = authLoading || workspaceContextLoading || !selectedWorkspace?.id || workspaceFetching;
+  // For unauthenticated users, stop loading immediately after auth check
+  // For authenticated users, wait for workspace data
+  const isLoading = authLoading || (isAuthenticated && (workspaceContextLoading || !selectedWorkspace?.id || workspaceFetching));
 
   const canAccessDashboard = userRole === "admin" || userRole === "manager";
   const canAccessProjects = userRole === "admin" || userRole === "manager";
