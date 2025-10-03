@@ -105,6 +105,7 @@ Preferred communication style: Simple, everyday language.
 - PostgreSQL session store via connect-pg-simple with 7-day session TTL
 - Automatic session refresh with refresh tokens for OAuth sessions
 - Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`, `/auth/login`, `/auth/register`
+- **Automatic Tenant & Workspace Creation**: Both local registration and OAuth signup automatically create a default tenant and "Main Workspace" for new users, assigning them as workspace admin
 
 **Role-Based Access Control (RBAC):**
 - Three role levels: `admin`, `manager`, and `member`

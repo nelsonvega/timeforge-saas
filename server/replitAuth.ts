@@ -56,10 +56,49 @@ function updateUserSession(
   user.expires_at = user.claims?.exp;
 }
 
-async function upsertUser(
-  claims: any,
-) {
-  await storage.upsertUser({
+async function createUserWithTenantAndWorkspace(userData: {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  profileImageUrl?: string;
+}) {
+  // Upsert the user
+  const user = await storage.upsertUser(userData);
+
+  // Check if user already has workspaces
+  const existingWorkspaces = await storage.getUserWorkspaces(user.id);
+  
+  // Only create tenant/workspace for truly new users
+  if (existingWorkspaces.length === 0) {
+    const tenantName = `${userData.firstName}'s Organization`;
+    const tenantSlug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    
+    const tenant = await storage.createTenant({
+      name: tenantName,
+      slug: tenantSlug,
+      plan: 'free',
+      status: 'active',
+    });
+
+    const workspace = await storage.createWorkspace({
+      tenantId: tenant.id,
+      name: 'Main Workspace',
+      slug: 'main',
+      timezone: 'UTC',
+      status: 'active',
+    });
+
+    await storage.createWorkspaceMembership({
+      workspaceId: workspace.id,
+      userId: user.id,
+      role: 'admin',
+    });
+  }
+}
+
+async function upsertUser(claims: any) {
+  await createUserWithTenantAndWorkspace({
     id: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
@@ -186,7 +225,7 @@ export async function setupAuth(app: Express) {
       });
 
       // Create tenant - always start with free plan, upgrade after payment
-      const tenantSlug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const tenantSlug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       const tenant = await storage.createTenant({
         name: tenantName,
         slug: tenantSlug,
