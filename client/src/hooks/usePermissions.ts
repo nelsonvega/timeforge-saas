@@ -6,13 +6,14 @@ export function usePermissions() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { selectedWorkspace, isLoading: workspaceContextLoading } = useWorkspace();
 
-  // Fetch detailed workspace info including tenant plan
+  // Fetch detailed workspace info including tenant plan and user's workspace role
   const { data: workspaceDetails, isFetching: workspaceFetching } = useQuery({
     queryKey: [`/api/workspaces/${selectedWorkspace?.id}`],
     enabled: !!selectedWorkspace?.id && isAuthenticated,
   });
 
-  const userRole = user?.role || "member";
+  // Use workspace-specific role, not global user role
+  const userRole = (workspaceDetails as any)?.userRole || user?.role || "member";
   const tenantPlan = (workspaceDetails as any)?.tenant?.plan;
   
   // For unauthenticated users, stop loading immediately after auth check

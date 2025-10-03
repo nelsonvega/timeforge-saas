@@ -69,6 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         ...workspace,
+        userRole: membership.role, // Include the user's workspace-specific role
         tenant: tenant ? {
           id: tenant.id,
           name: tenant.name,
@@ -114,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard
-  app.get('/api/dashboard/metrics', requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get('/api/dashboard/metrics', requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const metrics = await storage.getDashboardMetrics(req.workspaceId);
       res.json(metrics);
@@ -124,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clients
-  app.get("/api/clients", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/clients", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const clients = await storage.getAllClients(req.workspaceId);
       res.json(clients);
@@ -133,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/clients/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const client = await storage.getClient(req.workspaceId, req.params.id);
       if (!client) {
@@ -145,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/clients", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.post("/api/clients", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const validatedData = insertClientSchema.parse({
         ...req.body,
@@ -158,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.patch("/api/clients/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const client = await storage.updateClient(req.workspaceId, req.params.id, req.body);
       if (!client) {
@@ -170,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/clients/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.delete("/api/clients/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const success = await storage.deleteClient(req.workspaceId, req.params.id);
       if (!success) {
@@ -183,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Projects
-  app.get("/api/projects", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/projects", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const projects = await storage.getAllProjects(req.workspaceId);
       res.json(projects);
@@ -192,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/projects/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const project = await storage.getProject(req.workspaceId, req.params.id);
       if (!project) {
@@ -204,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/projects/client/:clientId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/projects/client/:clientId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const projects = await storage.getProjectsByClient(req.workspaceId, req.params.clientId);
       res.json(projects);
@@ -213,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/projects", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.post("/api/projects", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const validatedData = insertProjectSchema.parse({
         ...req.body,
@@ -226,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.patch("/api/projects/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const project = await storage.updateProject(req.workspaceId, req.params.id, req.body);
       if (!project) {
@@ -238,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/projects/:id", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.delete("/api/projects/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const success = await storage.deleteProject(req.workspaceId, req.params.id);
       if (!success) {
@@ -251,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users (Team Members)
-  app.get("/api/users", requireRole("admin", "manager"), async (_req, res) => {
+  app.get("/api/users", requireRole("owner", "admin", "manager"), async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -260,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.get("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
@@ -272,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireRole("admin", "manager"), async (req, res) => {
+  app.post("/api/users", requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       const user = await storage.createUser(validatedData);
@@ -282,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.patch("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const user = await storage.updateUser(req.params.id, req.body);
       if (!user) {
@@ -294,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireRole("admin", "manager"), async (req, res) => {
+  app.delete("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const success = await storage.deleteUser(req.params.id);
       if (!success) {
@@ -384,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project Assignments
-  app.post("/api/project-assignments", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.post("/api/project-assignments", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const validatedData = insertProjectAssignmentSchema.parse({
         ...req.body,
@@ -397,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/project-assignments/project/:projectId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/project-assignments/project/:projectId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const assignments = await storage.getProjectAssignments(req.workspaceId, req.params.projectId);
       res.json(assignments);
@@ -406,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/project-assignments/user/:userId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.get("/api/project-assignments/user/:userId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const assignments = await storage.getUserAssignments(req.workspaceId, req.params.userId);
       res.json(assignments);
@@ -415,7 +416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/project-assignments/:userId/:projectId", requireWorkspace, requireRole("admin", "manager"), async (req: any, res) => {
+  app.delete("/api/project-assignments/:userId/:projectId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
     try {
       const success = await storage.removeUserFromProject(req.workspaceId, req.params.userId, req.params.projectId);
       if (!success) {
