@@ -105,16 +105,17 @@ Preferred communication style: Simple, everyday language.
 - PostgreSQL session store via connect-pg-simple with 7-day session TTL
 - Automatic session refresh with refresh tokens for OAuth sessions
 - Universal route protection: all `/api/*` endpoints require authentication except `/login`, `/callback`, `/logout`, `/auth/login`, `/auth/register`
-- **Automatic Tenant & Workspace Creation**: Both local registration and OAuth signup automatically create a default tenant and "Main Workspace" for new users, assigning them as workspace admin
+- **Automatic Tenant & Workspace Creation**: Both local registration and OAuth signup automatically create a default tenant and "Main Workspace" for new users, assigning them as workspace owner (highest privilege level)
 
 **Role-Based Access Control (RBAC):**
-- Three role levels: `admin`, `manager`, and `member`
+- Four role levels: `owner`, `admin`, `manager`, and `member`
 - Backend middleware (`requireRole`) protects API endpoints based on user role
 - Frontend permissions hook (`usePermissions`) controls UI visibility and route access
 - Dynamic sidebar navigation that shows/hides menu items based on role
 - Route guards redirect unauthorized users to appropriate default pages
 
 **Role Permissions:**
+- **Owner**: Highest privilege level assigned to account creator - full access to all features including settings regardless of plan
 - **Admin & Manager**: Full access to dashboard, projects, clients, team, and reports
 - **Member**: Access restricted to time tracker only (and settings for paid plans)
 - Time tracking functionality available to all roles

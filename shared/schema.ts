@@ -13,7 +13,7 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-export const userRoles = ["admin", "manager", "member"] as const;
+export const userRoles = ["owner", "admin", "manager", "member"] as const;
 export type UserRole = typeof userRoles[number];
 
 export const users = pgTable("users", {

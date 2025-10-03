@@ -92,7 +92,7 @@ async function createUserWithTenantAndWorkspace(userData: {
     await storage.createWorkspaceMembership({
       workspaceId: workspace.id,
       userId: user.id,
-      role: 'admin',
+      role: 'owner',
     });
   }
 }
@@ -221,7 +221,7 @@ export async function setupAuth(app: Express) {
         firstName,
         lastName,
         name: `${firstName} ${lastName}`,
-        role: 'admin',
+        role: 'owner',
       });
 
       // Create tenant - always start with free plan, upgrade after payment
@@ -242,11 +242,11 @@ export async function setupAuth(app: Express) {
         status: 'active',
       });
 
-      // Add user as admin of the workspace
+      // Add user as owner of the workspace
       await storage.createWorkspaceMembership({
         workspaceId: workspace.id,
         userId: user.id,
-        role: 'admin',
+        role: 'owner',
       });
 
       req.logIn({

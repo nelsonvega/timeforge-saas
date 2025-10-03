@@ -98,7 +98,7 @@ export function AppSidebar() {
   };
 
   const displayName = user?.name || user?.email || 'User';
-  const roleLabel = permissions.isAdmin ? 'Admin' : permissions.isManager ? 'Manager' : 'Member';
+  const roleLabel = permissions.isOwner ? 'Owner' : permissions.isAdmin ? 'Admin' : permissions.isManager ? 'Manager' : 'Member';
   
   const handleLogout = () => {
     window.location.href = '/api/logout';

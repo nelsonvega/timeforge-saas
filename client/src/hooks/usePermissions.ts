@@ -19,14 +19,15 @@ export function usePermissions() {
   // For authenticated users, wait for workspace data
   const isLoading = authLoading || (isAuthenticated && (workspaceContextLoading || !selectedWorkspace?.id || workspaceFetching));
 
-  const canAccessDashboard = userRole === "admin" || userRole === "manager";
-  const canAccessProjects = userRole === "admin" || userRole === "manager";
-  const canAccessClients = userRole === "admin" || userRole === "manager";
-  const canAccessTeam = userRole === "admin" || userRole === "manager";
-  const canAccessReports = userRole === "admin" || userRole === "manager";
+  // Owner has all permissions, followed by admin, manager, then member
+  const canAccessDashboard = userRole === "owner" || userRole === "admin" || userRole === "manager";
+  const canAccessProjects = userRole === "owner" || userRole === "admin" || userRole === "manager";
+  const canAccessClients = userRole === "owner" || userRole === "admin" || userRole === "manager";
+  const canAccessTeam = userRole === "owner" || userRole === "admin" || userRole === "manager";
+  const canAccessReports = userRole === "owner" || userRole === "admin" || userRole === "manager";
   const canAccessTracker = true;
-  // Only grant settings access if we have loaded the plan and it's paid
-  const canAccessSettings = tenantPlan === "paid";
+  // Only grant settings access if we have loaded the plan and it's paid (or user is owner)
+  const canAccessSettings = userRole === "owner" || tenantPlan === "paid";
 
   return {
     user,
@@ -41,6 +42,7 @@ export function usePermissions() {
     canAccessSettings,
     userRole,
     tenantPlan,
+    isOwner: userRole === "owner",
     isAdmin: userRole === "admin",
     isManager: userRole === "manager",
     isMember: userRole === "member",

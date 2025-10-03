@@ -32,16 +32,17 @@ export function canAccessResource(userRole: string): {
   canAccessTracker: boolean;
   canAccessSettings: boolean;
 } {
+  const isOwner = userRole === "owner";
   const isAdmin = userRole === "admin";
   const isManager = userRole === "manager";
   const isMember = userRole === "member";
 
   return {
-    canAccessDashboard: isAdmin || isManager,
-    canAccessProjects: isAdmin || isManager,
-    canAccessClients: isAdmin || isManager,
-    canAccessTeam: isAdmin || isManager,
-    canAccessReports: isAdmin || isManager,
+    canAccessDashboard: isOwner || isAdmin || isManager,
+    canAccessProjects: isOwner || isAdmin || isManager,
+    canAccessClients: isOwner || isAdmin || isManager,
+    canAccessTeam: isOwner || isAdmin || isManager,
+    canAccessReports: isOwner || isAdmin || isManager,
     canAccessTracker: true,
     canAccessSettings: true,
   };

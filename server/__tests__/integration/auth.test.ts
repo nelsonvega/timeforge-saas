@@ -48,10 +48,10 @@ describe('Authentication Integration - Automatic Tenant & Workspace Creation', (
       expect(workspaces).toHaveLength(1);
       expect(workspaces[0].name).toBe('Main Workspace');
 
-      // Verify user is admin of the workspace
+      // Verify user is owner of the workspace
       const membership = await storage.getWorkspaceMembership(workspaces[0].id, user!.id);
       expect(membership).toBeDefined();
-      expect(membership?.role).toBe('admin');
+      expect(membership?.role).toBe('owner');
 
       // Verify tenant was created
       const tenant = await storage.getTenant(response.body.tenant.id);
