@@ -172,6 +172,14 @@ export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   endTime: z.string().transform((val) => new Date(val)).nullable().optional(),
 });
 
+export const updateTimeEntrySchema = z.object({
+  startTime: z.string().transform((val) => new Date(val)).optional(),
+  endTime: z.string().transform((val) => new Date(val)).nullable().optional(),
+  duration: z.number().nullable().optional(),
+  description: z.string().optional(),
+  isBillable: z.boolean().optional(),
+}).partial();
+
 export const insertProjectAssignmentSchema = createInsertSchema(projectAssignments).omit({
   id: true,
   createdAt: true,

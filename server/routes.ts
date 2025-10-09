@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, updateTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireRole } from "./middleware/authorization";
 import { requireWorkspace } from "./middleware/workspace";
@@ -362,7 +362,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/time-entries/:id", requireWorkspace, async (req: any, res) => {
     try {
-      const entry = await storage.updateTimeEntry(req.workspaceId, req.params.id, req.body);
+      const validatedData = updateTimeEntrySchema.parse(req.body);
+      const entry = await storage.updateTimeEntry(req.workspaceId, req.params.id, validatedData);
       if (!entry) {
         return res.status(404).json({ error: "Time entry not found" });
       }
