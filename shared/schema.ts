@@ -167,6 +167,9 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
 export const insertTimeEntrySchema = createInsertSchema(timeEntries).omit({
   id: true,
   createdAt: true,
+}).extend({
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date().nullable().optional(),
 });
 
 export const insertProjectAssignmentSchema = createInsertSchema(projectAssignments).omit({
