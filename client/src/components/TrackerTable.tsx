@@ -29,13 +29,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { TimeEntry, Project, User } from "@shared/schema";
+import type { TimeEntry, Project } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export function TrackerTable() {
   const { toast } = useToast();
   const { selectedWorkspace } = useWorkspace();
+  const { user: currentUser } = useAuth();
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newProject, setNewProject] = useState("");
   
@@ -51,17 +53,10 @@ export function TrackerTable() {
     enabled: !!selectedWorkspace?.id,
   });
 
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users", selectedWorkspace?.id],
-    enabled: !!selectedWorkspace?.id,
-  });
-
   const { data: entries = [], isLoading } = useQuery<TimeEntry[]>({
     queryKey: ["/api/time-entries", selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
   });
-
-  const currentUser = users[0];
 
   const createTimeEntryMutation = useMutation({
     mutationFn: async (data: any) => {
