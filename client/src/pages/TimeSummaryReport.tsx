@@ -12,22 +12,29 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import type { TimeEntry, Project, Client, User } from "@shared/schema";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function TimeSummaryReport() {
+  const { selectedWorkspace } = useWorkspace();
+  
   const { data: timeEntries = [], isLoading: isLoadingEntries } = useQuery<TimeEntry[]>({
-    queryKey: ["/api/time-entries"],
+    queryKey: ["/api/time-entries", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: projects = [], isLoading: isLoadingProjects } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const isLoading = isLoadingEntries || isLoadingProjects || isLoadingClients || isLoadingUsers;

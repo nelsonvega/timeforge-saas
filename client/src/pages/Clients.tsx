@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import type { Client } from "@shared/schema";
 import { useState } from "react";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function Clients() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { selectedWorkspace } = useWorkspace();
   
   const { data: clients = [], isLoading } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const filteredClients = clients.filter(client =>

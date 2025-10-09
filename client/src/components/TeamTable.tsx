@@ -18,10 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export function TeamTable() {
+  const { selectedWorkspace } = useWorkspace();
+  
   const { data: team = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const roleColors: Record<string, "default" | "secondary" | "outline"> = {

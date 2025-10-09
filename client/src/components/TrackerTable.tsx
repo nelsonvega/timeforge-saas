@@ -31,9 +31,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TimeEntry, Project, User } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export function TrackerTable() {
   const { toast } = useToast();
+  const { selectedWorkspace } = useWorkspace();
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newProject, setNewProject] = useState("");
   
@@ -45,26 +47,29 @@ export function TrackerTable() {
   const [manualBillable, setManualBillable] = useState(true);
 
   const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: users = [] } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: entries = [], isLoading } = useQuery<TimeEntry[]>({
-    queryKey: ["/api/time-entries"],
+    queryKey: ["/api/time-entries", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const currentUser = users[0];
 
   const createTimeEntryMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/time-entries", data);
+      const res = await apiRequest("POST", "/api/time-entries", data, selectedWorkspace?.id);
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedWorkspace?.id] });
       toast({
         title: "Time entry created",
         description: "Your time entry has been added successfully.",
@@ -81,11 +86,11 @@ export function TrackerTable() {
 
   const updateTimeEntryMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await apiRequest("PATCH", `/api/time-entries/${id}`, data);
+      const res = await apiRequest("PATCH", `/api/time-entries/${id}`, data, selectedWorkspace?.id);
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedWorkspace?.id] });
     },
     onError: (error: any) => {
       toast({
@@ -98,10 +103,10 @@ export function TrackerTable() {
 
   const deleteTimeEntryMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/time-entries/${id}`);
+      await apiRequest("DELETE", `/api/time-entries/${id}`, undefined, selectedWorkspace?.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/time-entries", selectedWorkspace?.id] });
       toast({
         title: "Time entry deleted",
         description: "The time entry has been removed.",

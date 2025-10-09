@@ -18,10 +18,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Client, Project } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function NewClient() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { selectedWorkspace } = useWorkspace();
   const [clientName, setClientName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -32,12 +34,13 @@ export default function NewClient() {
   const [newProjectName, setNewProjectName] = useState("");
 
   const { data: existingProjects = [] } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/clients", data);
+      const res = await apiRequest("POST", "/api/clients", data, selectedWorkspace?.id);
       return await res.json();
     },
     onSuccess: async (newClient: Client) => {
@@ -46,15 +49,15 @@ export default function NewClient() {
           name: newProjectName,
           clientId: newClient.id,
           status: "active",
-        });
+        }, selectedWorkspace?.id);
       } else if (projectMode === "existing" && selectedProject) {
         await apiRequest("PATCH", `/api/projects/${selectedProject}`, {
           clientId: newClient.id,
-        });
+        }, selectedWorkspace?.id);
       }
       
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedWorkspace?.id] });
       
       toast({
         title: "Client created",

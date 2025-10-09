@@ -17,10 +17,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Client, Project } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function NewProject() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { selectedWorkspace } = useWorkspace();
   const [projectName, setProjectName] = useState("");
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClient, setSelectedClient] = useState("");
@@ -28,7 +30,8 @@ export default function NewProject() {
   const [budget, setBudget] = useState("");
 
   const { data: existingClients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const createProjectMutation = useMutation({
@@ -39,7 +42,7 @@ export default function NewProject() {
         const clientRes = await apiRequest("POST", "/api/clients", {
           name: newClientName,
           status: "active",
-        });
+        }, selectedWorkspace?.id);
         const newClient: Client = await clientRes.json();
         clientId = newClient.id;
       }
@@ -49,12 +52,12 @@ export default function NewProject() {
         clientId,
         budget: budget ? budget : null,
         status: "active",
-      });
+      }, selectedWorkspace?.id);
       return await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", selectedWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedWorkspace?.id] });
       
       toast({
         title: "Project created",

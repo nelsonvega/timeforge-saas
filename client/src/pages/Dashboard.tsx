@@ -7,6 +7,7 @@ import { TimeDistributionChart } from "@/components/TimeDistributionChart";
 import { WeeklyTrendChart } from "@/components/WeeklyTrendChart";
 import { ProjectHoursChart } from "@/components/ProjectHoursChart";
 import { TeamUtilizationChart } from "@/components/TeamUtilizationChart";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface DashboardMetrics {
   totalHours: number;
@@ -16,8 +17,11 @@ interface DashboardMetrics {
 }
 
 export default function Dashboard() {
+  const { selectedWorkspace } = useWorkspace();
+  
   const { data: metrics, isLoading, isError } = useQuery<DashboardMetrics>({
-    queryKey: ['/api/dashboard/metrics'],
+    queryKey: ['/api/dashboard/metrics', selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const getMetricValue = (value: number | undefined, fallback: string = "0") => {

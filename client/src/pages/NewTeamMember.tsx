@@ -17,6 +17,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User as UserType, Project } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const roles = [
   "Developer",
@@ -32,6 +33,7 @@ const roles = [
 export default function NewTeamMember() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { selectedWorkspace } = useWorkspace();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -42,7 +44,8 @@ export default function NewTeamMember() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
   const { data: existingProjects = [] } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const createTeamMemberMutation = useMutation({
@@ -54,7 +57,7 @@ export default function NewTeamMember() {
         password,
         role,
         hourlyRate: hourlyRate || null,
-      });
+      }, selectedWorkspace?.id);
       const newUser: UserType = await res.json();
       
       if (projectMode === "assign" && selectedProjects.length > 0) {
@@ -63,7 +66,7 @@ export default function NewTeamMember() {
             apiRequest("POST", "/api/project-assignments", {
               userId: newUser.id,
               projectId,
-            })
+            }, selectedWorkspace?.id)
           )
         );
       }
@@ -71,8 +74,8 @@ export default function NewTeamMember() {
       return newUser;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/project-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", selectedWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/project-assignments", selectedWorkspace?.id] });
       
       toast({
         title: "Team member added",

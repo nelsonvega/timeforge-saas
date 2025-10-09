@@ -6,16 +6,20 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import type { Project, Client } from "@shared/schema";
 import { useState } from "react";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export default function Projects() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { selectedWorkspace } = useWorkspace();
   
   const { data: projects = [], isLoading } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const { data: clients = [] } = useQuery<Client[]>({
-    queryKey: ["/api/clients"],
+    queryKey: ["/api/clients", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
   });
 
   const filteredProjects = projects.filter(project =>
