@@ -201,7 +201,7 @@ export default function Login() {
           <div className="mx-auto h-16 w-16 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-lg">
             <Clock className="h-9 w-9 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold">TimeTrack</h1>
+          <h1 className="text-3xl font-bold">Focus Flow</h1>
           <p className="text-muted-foreground mt-2">
             Professional time tracking for modern teams
           </p>

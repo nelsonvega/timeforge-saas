@@ -112,8 +112,7 @@ export function AppSidebar() {
             <Clock className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">TimeTrack</h2>
-            <p className="text-xs text-muted-foreground">Acme Agency</p>
+            <h2 className="text-lg font-semibold">Focus Flow</h2>
           </div>
         </div>
       </SidebarHeader>
