@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, User, Mail, Briefcase, DollarSign, FolderOpen, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, User, Mail, Briefcase, DollarSign, FolderOpen, CheckCircle2, ChevronsUpDown, X } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,20 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User as UserType, Project } from "@shared/schema";
@@ -42,6 +56,7 @@ export default function NewTeamMember() {
   const [hourlyRate, setHourlyRate] = useState("");
   const [projectMode, setProjectMode] = useState<"none" | "assign">("none");
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [projectsPopoverOpen, setProjectsPopoverOpen] = useState(false);
 
   const { data: existingProjects = [] } = useQuery<Project[]>({
     queryKey: ["/api/projects", selectedWorkspace?.id],
@@ -336,27 +351,83 @@ export default function NewTeamMember() {
                   </div>
 
                   {projectMode === "assign" && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label>Select Projects</Label>
-                      <div className="grid gap-2 max-h-64 overflow-y-auto p-4 border rounded-lg">
-                        {existingProjects.map((project) => (
-                          <button
-                            key={project.id}
-                            onClick={() => toggleProject(project.id)}
-                            className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
-                              selectedProjects.includes(project.id)
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover-elevate"
-                            }`}
-                            data-testid={`button-project-${project.id}`}
+                      <Popover open={projectsPopoverOpen} onOpenChange={setProjectsPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={projectsPopoverOpen}
+                            className="w-full justify-between h-auto min-h-10"
+                            data-testid="button-select-projects"
                           >
-                            <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${
-                              selectedProjects.includes(project.id) ? "text-primary" : "text-muted-foreground"
-                            }`} />
-                            <span className="font-medium">{project.name}</span>
-                          </button>
-                        ))}
-                      </div>
+                            <div className="flex flex-wrap gap-1 flex-1">
+                              {selectedProjects.length === 0 ? (
+                                <span className="text-muted-foreground">Select projects...</span>
+                              ) : (
+                                selectedProjects.map((projectId) => {
+                                  const project = existingProjects.find(p => p.id === projectId);
+                                  return project ? (
+                                    <Badge
+                                      key={projectId}
+                                      variant="secondary"
+                                      className="gap-1"
+                                      data-testid={`badge-project-${projectId}`}
+                                    >
+                                      {project.name}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleProject(projectId);
+                                        }}
+                                        className="ml-1 hover:bg-muted-foreground/20 rounded-sm"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </Badge>
+                                  ) : null;
+                                })
+                              )}
+                            </div>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search projects..." />
+                            <CommandList>
+                              <CommandEmpty>No projects found.</CommandEmpty>
+                              <CommandGroup>
+                                {existingProjects.map((project) => (
+                                  <CommandItem
+                                    key={project.id}
+                                    value={project.name}
+                                    onSelect={() => {
+                                      toggleProject(project.id);
+                                    }}
+                                    data-testid={`option-project-${project.id}`}
+                                  >
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <Checkbox
+                                        checked={selectedProjects.includes(project.id)}
+                                        onCheckedChange={() => toggleProject(project.id)}
+                                      />
+                                      <span>{project.name}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {selectedProjects.length > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {selectedProjects.length} project{selectedProjects.length === 1 ? '' : 's'} selected
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
