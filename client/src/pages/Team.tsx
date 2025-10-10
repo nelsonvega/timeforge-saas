@@ -5,10 +5,12 @@ import { TeamTable } from "@/components/TeamTable";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GroupsTable } from "@/components/GroupsTable";
+import { CreateGroupDialog } from "@/components/CreateGroupDialog";
 import { useState } from "react";
 
 export default function Team() {
   const [activeTab, setActiveTab] = useState("members");
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
   return (
     <div className="p-8 space-y-6">
@@ -27,7 +29,10 @@ export default function Team() {
             </Button>
           </Link>
         ) : (
-          <Button data-testid="button-create-group">
+          <Button 
+            onClick={() => setIsCreateGroupOpen(true)}
+            data-testid="button-create-group"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Create Group
           </Button>
@@ -62,6 +67,11 @@ export default function Team() {
           <GroupsTable />
         </TabsContent>
       </Tabs>
+
+      <CreateGroupDialog 
+        open={isCreateGroupOpen} 
+        onOpenChange={setIsCreateGroupOpen} 
+      />
     </div>
   );
 }
