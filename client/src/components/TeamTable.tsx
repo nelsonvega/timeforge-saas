@@ -1,5 +1,6 @@
 import { MoreHorizontal, Mail, FolderOpen, Users } from "lucide-react";
 import { useLocation } from "wouter";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -20,10 +21,12 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import type { User, Project, Client, ProjectAssignment } from "@shared/schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { AddToGroupDialog } from "./AddToGroupDialog";
 
 export function TeamTable() {
   const { selectedWorkspace } = useWorkspace();
   const [, setLocation] = useLocation();
+  const [selectedMember, setSelectedMember] = useState<User | null>(null);
   
   const { data: team = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users", selectedWorkspace?.id],
@@ -179,6 +182,13 @@ export function TeamTable() {
                       >
                         Assign Projects
                       </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setSelectedMember(member)}
+                        data-testid={`menu-add-to-group-${member.id}`}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Add to Group
+                      </DropdownMenuItem>
                       <DropdownMenuItem data-testid={`menu-deactivate-member-${member.id}`}>Deactivate</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -188,6 +198,12 @@ export function TeamTable() {
           )}
         </TableBody>
       </Table>
+      
+      <AddToGroupDialog 
+        member={selectedMember}
+        open={!!selectedMember}
+        onOpenChange={(open) => !open && setSelectedMember(null)}
+      />
     </div>
   );
 }
