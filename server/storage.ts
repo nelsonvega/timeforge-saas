@@ -57,6 +57,7 @@ export interface IStorage {
   getWorkspaceMembership(workspaceId: string, userId: string): Promise<WorkspaceMembership | undefined>;
   getWorkspaceMemberships(workspaceId: string): Promise<WorkspaceMembership[]>;
   getUserMemberships(userId: string): Promise<WorkspaceMembership[]>;
+  getWorkspaceUsers(workspaceId: string): Promise<User[]>;
   createWorkspaceMembership(membership: InsertWorkspaceMembership): Promise<WorkspaceMembership>;
   updateWorkspaceMembership(id: string, membership: Partial<InsertWorkspaceMembership>): Promise<WorkspaceMembership | undefined>;
   removeWorkspaceMembership(workspaceId: string, userId: string): Promise<boolean>;
@@ -260,6 +261,18 @@ export class DbStorage implements IStorage {
       .from(workspaceMemberships)
       .where(eq(workspaceMemberships.userId, userId))
       .orderBy(desc(workspaceMemberships.joinedAt));
+  }
+
+  async getWorkspaceUsers(workspaceId: string): Promise<User[]> {
+    const memberships = await db
+      .select({
+        user: users
+      })
+      .from(workspaceMemberships)
+      .innerJoin(users, eq(workspaceMemberships.userId, users.id))
+      .where(eq(workspaceMemberships.workspaceId, workspaceId))
+      .orderBy(desc(workspaceMemberships.joinedAt));
+    return memberships.map(m => m.user);
   }
 
   async createWorkspaceMembership(membership: InsertWorkspaceMembership): Promise<WorkspaceMembership> {

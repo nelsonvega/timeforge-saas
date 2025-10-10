@@ -252,9 +252,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users (Team Members)
-  app.get("/api/users", requireWorkspace, requireRole("owner", "admin", "manager"), async (_req, res) => {
+  app.get("/api/users", requireWorkspace, requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
+      const users = await storage.getWorkspaceUsers(req.workspaceId);
       res.json(users);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
