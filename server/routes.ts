@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users (Team Members)
-  app.get("/api/users", requireRole("owner", "admin", "manager"), async (_req, res) => {
+  app.get("/api/users", requireWorkspace, requireRole("owner", "admin", "manager"), async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -261,7 +261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
+  app.get("/api/users/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const user = await storage.getUser(req.params.id);
       if (!user) {
@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requireRole("owner", "admin", "manager"), async (req, res) => {
+  app.post("/api/users", requireWorkspace, requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const validatedData = insertUserSchema.parse(req.body);
       const user = await storage.createUser(validatedData);
@@ -283,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
+  app.patch("/api/users/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const user = await storage.updateUser(req.params.id, req.body);
       if (!user) {
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", requireRole("owner", "admin", "manager"), async (req, res) => {
+  app.delete("/api/users/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req, res) => {
     try {
       const success = await storage.deleteUser(req.params.id);
       if (!success) {

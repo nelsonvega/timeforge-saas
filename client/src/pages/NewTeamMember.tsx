@@ -376,16 +376,15 @@ export default function NewTeamMember() {
                                       data-testid={`badge-project-${projectId}`}
                                     >
                                       {project.name}
-                                      <button
-                                        type="button"
+                                      <span
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           toggleProject(projectId);
                                         }}
-                                        className="ml-1 hover:bg-muted-foreground/20 rounded-sm"
+                                        className="ml-1 hover:bg-muted-foreground/20 rounded-sm cursor-pointer inline-flex"
                                       >
                                         <X className="h-3 w-3" />
-                                      </button>
+                                      </span>
                                     </Badge>
                                   ) : null;
                                 })
