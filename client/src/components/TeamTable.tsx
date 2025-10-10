@@ -1,4 +1,4 @@
-import { MoreHorizontal, Mail } from "lucide-react";
+import { MoreHorizontal, Mail, FolderOpen, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Table,
@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import type { User, Project, Client, ProjectAssignment } from "@shared/schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export function TeamTable() {
@@ -27,6 +27,21 @@ export function TeamTable() {
   
   const { data: team = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+  });
+
+  const { data: projects = [] } = useQuery<Project[]>({
+    queryKey: ["/api/projects", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+  });
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients", selectedWorkspace?.id],
+    enabled: !!selectedWorkspace?.id,
+  });
+
+  const { data: assignments = [] } = useQuery<ProjectAssignment[]>({
+    queryKey: ["/api/project-assignments", selectedWorkspace?.id],
     enabled: !!selectedWorkspace?.id,
   });
 
@@ -41,6 +56,21 @@ export function TeamTable() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
+  const getMemberProjects = (userId: string) => {
+    const userAssignments = assignments.filter(a => a.userId === userId);
+    return userAssignments
+      .map(a => projects.find(p => p.id === a.projectId))
+      .filter(Boolean) as Project[];
+  };
+
+  const getMemberClients = (userId: string) => {
+    const memberProjects = getMemberProjects(userId);
+    const clientIds = Array.from(new Set(memberProjects.map(p => p.clientId)));
+    return clientIds
+      .map(cId => clients.find(c => c.id === cId))
+      .filter(Boolean) as Client[];
+  };
+
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Loading team members...</div>;
   }
@@ -53,6 +83,8 @@ export function TeamTable() {
             <TableHead>Member</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Assigned Projects</TableHead>
+            <TableHead>Assigned Clients</TableHead>
             <TableHead>Hourly Rate</TableHead>
             <TableHead className="w-[70px]">Actions</TableHead>
           </TableRow>
@@ -60,7 +92,7 @@ export function TeamTable() {
         <TableBody>
           {team.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
                 No team members yet. Add your first team member!
               </TableCell>
             </TableRow>
@@ -85,6 +117,44 @@ export function TeamTable() {
                 </TableCell>
                 <TableCell>
                   <Badge variant={roleColors[member.role] || "secondary"}>{member.role}</Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {getMemberProjects(member.id).length > 0 ? (
+                      getMemberProjects(member.id).map((project) => (
+                        <Badge 
+                          key={project.id} 
+                          variant="outline" 
+                          className="gap-1"
+                          data-testid={`badge-project-${project.id}`}
+                        >
+                          <FolderOpen className="h-3 w-3" />
+                          {project.name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No projects</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {getMemberClients(member.id).length > 0 ? (
+                      getMemberClients(member.id).map((client) => (
+                        <Badge 
+                          key={client.id} 
+                          variant="secondary"
+                          className="gap-1"
+                          data-testid={`badge-client-${client.id}`}
+                        >
+                          <Users className="h-3 w-3" />
+                          {client.name}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No clients</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono">
                   {member.hourlyRate ? `$${member.hourlyRate}/hr` : "Not set"}
