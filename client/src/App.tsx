@@ -19,6 +19,8 @@ import Clients from "@/pages/Clients";
 import NewClient from "@/pages/NewClient";
 import Team from "@/pages/Team";
 import NewTeamMember from "@/pages/NewTeamMember";
+import EditTeamMember from "@/pages/EditTeamMember";
+import AssignProjects from "@/pages/AssignProjects";
 import Reports from "@/pages/Reports";
 import ReportDetail from "@/pages/ReportDetail";
 import TimeSummaryReport from "@/pages/TimeSummaryReport";
@@ -67,6 +69,12 @@ function Router() {
       </Route>
       <Route path="/team/new">
         {() => <ProtectedRoute component={NewTeamMember} permission="canAccessTeam" />}
+      </Route>
+      <Route path="/team/edit/:id">
+        {() => <ProtectedRoute component={EditTeamMember} permission="canAccessTeam" />}
+      </Route>
+      <Route path="/team/assign-projects/:id">
+        {() => <ProtectedRoute component={AssignProjects} permission="canAccessTeam" />}
       </Route>
       <Route path="/reports">
         {() => <ProtectedRoute component={Reports} permission="canAccessReports" />}

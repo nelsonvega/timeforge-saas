@@ -1,4 +1,5 @@
 import { MoreHorizontal, Mail } from "lucide-react";
+import { useLocation } from "wouter";
 import {
   Table,
   TableBody,
@@ -22,6 +23,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export function TeamTable() {
   const { selectedWorkspace } = useWorkspace();
+  const [, setLocation] = useLocation();
   
   const { data: team = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users", selectedWorkspace?.id],
@@ -95,8 +97,18 @@ export function TeamTable() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem data-testid={`menu-edit-member-${member.id}`}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem data-testid={`menu-assign-projects-${member.id}`}>Assign Projects</DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setLocation(`/team/edit/${member.id}`)}
+                        data-testid={`menu-edit-member-${member.id}`}
+                      >
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setLocation(`/team/assign-projects/${member.id}`)}
+                        data-testid={`menu-assign-projects-${member.id}`}
+                      >
+                        Assign Projects
+                      </DropdownMenuItem>
                       <DropdownMenuItem data-testid={`menu-deactivate-member-${member.id}`}>Deactivate</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
