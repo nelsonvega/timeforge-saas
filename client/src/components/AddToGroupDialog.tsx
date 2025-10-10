@@ -53,8 +53,9 @@ export function AddToGroupDialog({ member, open, onOpenChange }: AddToGroupDialo
       );
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, groupId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/groups", selectedWorkspace?.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/groups/${groupId}/members`, selectedWorkspace?.id] });
       toast({
         title: "Success",
         description: `${member?.name} has been added to the group`,

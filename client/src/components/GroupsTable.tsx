@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useLocation } from "wouter";
 import { Users, FolderOpen, Building2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import {
   Table,
@@ -31,6 +32,7 @@ type Group = {
 
 export function GroupsTable() {
   const { selectedWorkspace } = useWorkspace();
+  const [, setLocation] = useLocation();
 
   const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ["/api/groups", selectedWorkspace?.id],
@@ -128,13 +130,16 @@ export function GroupsTable() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setLocation(`/team/groups/${group.id}`)}
+                      data-testid={`menu-view-${group.id}`}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      View Details
+                    </DropdownMenuItem>
                     <DropdownMenuItem data-testid={`menu-edit-${group.id}`}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit Group
-                    </DropdownMenuItem>
-                    <DropdownMenuItem data-testid={`menu-members-${group.id}`}>
-                      <Users className="h-4 w-4 mr-2" />
-                      Manage Members
                     </DropdownMenuItem>
                     <DropdownMenuItem data-testid={`menu-clients-${group.id}`}>
                       <Building2 className="h-4 w-4 mr-2" />

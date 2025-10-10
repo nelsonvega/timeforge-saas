@@ -22,6 +22,7 @@ import NewTeamMember from "@/pages/NewTeamMember";
 import EditTeamMember from "@/pages/EditTeamMember";
 import AssignProjects from "@/pages/AssignProjects";
 import NewGroup from "@/pages/NewGroup";
+import GroupDetails from "@/pages/GroupDetails";
 import Reports from "@/pages/Reports";
 import ReportDetail from "@/pages/ReportDetail";
 import TimeSummaryReport from "@/pages/TimeSummaryReport";
@@ -79,6 +80,9 @@ function Router() {
       </Route>
       <Route path="/team/groups/new">
         {() => <ProtectedRoute component={NewGroup} permission="canAccessTeam" />}
+      </Route>
+      <Route path="/team/groups/:id">
+        {() => <ProtectedRoute component={GroupDetails} permission="canAccessTeam" />}
       </Route>
       <Route path="/reports">
         {() => <ProtectedRoute component={Reports} permission="canAccessReports" />}
