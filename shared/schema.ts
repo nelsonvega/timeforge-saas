@@ -131,6 +131,55 @@ export const projectAssignments = pgTable("project_assignments", {
   index("idx_project_assignments_project_id").on(table.projectId),
 ]);
 
+export const groups = pgTable("groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: varchar("color", { length: 7 }),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_groups_workspace_id").on(table.workspaceId),
+  index("idx_groups_workspace_status").on(table.workspaceId, table.status),
+]);
+
+export const groupMembers = pgTable("group_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_group_members_group_id").on(table.groupId),
+  index("idx_group_members_user_id").on(table.userId),
+  index("idx_group_members_workspace_id").on(table.workspaceId),
+]);
+
+export const groupClientAssignments = pgTable("group_client_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_group_client_assignments_group_id").on(table.groupId),
+  index("idx_group_client_assignments_client_id").on(table.clientId),
+  index("idx_group_client_assignments_workspace_id").on(table.workspaceId),
+]);
+
+export const groupProjectAssignments = pgTable("group_project_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  workspaceId: varchar("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_group_project_assignments_group_id").on(table.groupId),
+  index("idx_group_project_assignments_project_id").on(table.projectId),
+  index("idx_group_project_assignments_workspace_id").on(table.workspaceId),
+]);
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -185,6 +234,26 @@ export const insertProjectAssignmentSchema = createInsertSchema(projectAssignmen
   createdAt: true,
 });
 
+export const insertGroupSchema = createInsertSchema(groups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGroupMemberSchema = createInsertSchema(groupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export const insertGroupClientAssignmentSchema = createInsertSchema(groupClientAssignments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertGroupProjectAssignmentSchema = createInsertSchema(groupProjectAssignments).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -216,3 +285,15 @@ export type TimeEntry = typeof timeEntries.$inferSelect;
 
 export type InsertProjectAssignment = z.infer<typeof insertProjectAssignmentSchema>;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
+
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
+export type Group = typeof groups.$inferSelect;
+
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
+export type GroupMember = typeof groupMembers.$inferSelect;
+
+export type InsertGroupClientAssignment = z.infer<typeof insertGroupClientAssignmentSchema>;
+export type GroupClientAssignment = typeof groupClientAssignments.$inferSelect;
+
+export type InsertGroupProjectAssignment = z.infer<typeof insertGroupProjectAssignmentSchema>;
+export type GroupProjectAssignment = typeof groupProjectAssignments.$inferSelect;

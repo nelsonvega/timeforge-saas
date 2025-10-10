@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
-import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, updateTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema } from "@shared/schema";
+import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, updateTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema, insertGroupSchema, insertGroupMemberSchema, insertGroupClientAssignmentSchema, insertGroupProjectAssignmentSchema } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requireRole } from "./middleware/authorization";
 import { requireWorkspace } from "./middleware/workspace";
@@ -422,6 +422,213 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = await storage.removeUserFromProject(req.workspaceId, req.params.userId, req.params.projectId);
       if (!success) {
         return res.status(404).json({ error: "Assignment not found" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Groups CRUD
+  app.post("/api/groups", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      const validatedData = insertGroupSchema.parse({
+        ...req.body,
+        workspaceId: req.workspaceId,
+      });
+      const group = await storage.createGroup(validatedData);
+      res.status(201).json(group);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/groups", requireWorkspace, async (req: any, res) => {
+    try {
+      const groups = await storage.getGroups(req.workspaceId);
+      res.json(groups);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/groups/:id", requireWorkspace, async (req: any, res) => {
+    try {
+      const group = await storage.getGroup(req.workspaceId, req.params.id);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+      res.json(group);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/groups/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      // Only allow updating mutable fields (exclude workspaceId, id, createdAt)
+      const { name, description, color, status } = req.body;
+      const updateData = { name, description, color, status };
+      
+      const group = await storage.updateGroup(req.workspaceId, req.params.id, updateData);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+      res.json(group);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/groups/:id", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      const success = await storage.deleteGroup(req.workspaceId, req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Group Members
+  app.post("/api/groups/:id/members", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      // Verify group belongs to this workspace
+      const group = await storage.getGroup(req.workspaceId, req.params.id);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found in this workspace" });
+      }
+
+      // Verify user is a member of this workspace
+      const userMembership = await storage.getWorkspaceMembership(req.workspaceId, req.body.userId);
+      if (!userMembership) {
+        return res.status(400).json({ error: "User is not a member of this workspace" });
+      }
+
+      const validatedData = insertGroupMemberSchema.parse({
+        groupId: req.params.id,
+        userId: req.body.userId,
+        workspaceId: req.workspaceId,
+      });
+      const member = await storage.addGroupMember(validatedData);
+      res.status(201).json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/groups/:id/members", requireWorkspace, async (req: any, res) => {
+    try {
+      const members = await storage.getGroupMembers(req.workspaceId, req.params.id);
+      res.json(members);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/groups/:id/members/:userId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      const success = await storage.removeGroupMember(req.workspaceId, req.params.id, req.params.userId);
+      if (!success) {
+        return res.status(404).json({ error: "Group member not found" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Group-Client Assignments
+  app.post("/api/groups/:id/clients", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      // Verify group belongs to this workspace
+      const group = await storage.getGroup(req.workspaceId, req.params.id);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found in this workspace" });
+      }
+
+      // Verify client belongs to this workspace
+      const client = await storage.getClient(req.workspaceId, req.body.clientId);
+      if (!client) {
+        return res.status(400).json({ error: "Client not found in this workspace" });
+      }
+
+      const validatedData = insertGroupClientAssignmentSchema.parse({
+        groupId: req.params.id,
+        clientId: req.body.clientId,
+        workspaceId: req.workspaceId,
+      });
+      const assignment = await storage.assignGroupToClient(validatedData);
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/groups/:id/clients", requireWorkspace, async (req: any, res) => {
+    try {
+      const clients = await storage.getGroupClients(req.workspaceId, req.params.id);
+      res.json(clients);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/groups/:id/clients/:clientId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      const success = await storage.removeGroupFromClient(req.workspaceId, req.params.id, req.params.clientId);
+      if (!success) {
+        return res.status(404).json({ error: "Group-client assignment not found" });
+      }
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Group-Project Assignments
+  app.post("/api/groups/:id/projects", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      // Verify group belongs to this workspace
+      const group = await storage.getGroup(req.workspaceId, req.params.id);
+      if (!group) {
+        return res.status(404).json({ error: "Group not found in this workspace" });
+      }
+
+      // Verify project belongs to this workspace
+      const project = await storage.getProject(req.workspaceId, req.body.projectId);
+      if (!project) {
+        return res.status(400).json({ error: "Project not found in this workspace" });
+      }
+
+      const validatedData = insertGroupProjectAssignmentSchema.parse({
+        groupId: req.params.id,
+        projectId: req.body.projectId,
+        workspaceId: req.workspaceId,
+      });
+      const assignment = await storage.assignGroupToProject(validatedData);
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/groups/:id/projects", requireWorkspace, async (req: any, res) => {
+    try {
+      const projects = await storage.getGroupProjects(req.workspaceId, req.params.id);
+      res.json(projects);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/groups/:id/projects/:projectId", requireWorkspace, requireRole("owner", "admin", "manager"), async (req: any, res) => {
+    try {
+      const success = await storage.removeGroupFromProject(req.workspaceId, req.params.id, req.params.projectId);
+      if (!success) {
+        return res.status(404).json({ error: "Group-project assignment not found" });
       }
       res.status(204).send();
     } catch (error: any) {

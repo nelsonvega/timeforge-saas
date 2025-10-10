@@ -6,12 +6,17 @@ import type {
   Client, InsertClient,
   Project, InsertProject,
   TimeEntry, InsertTimeEntry,
-  ProjectAssignment, InsertProjectAssignment
+  ProjectAssignment, InsertProjectAssignment,
+  Group, InsertGroup,
+  GroupMember, InsertGroupMember,
+  GroupClientAssignment, InsertGroupClientAssignment,
+  GroupProjectAssignment, InsertGroupProjectAssignment
 } from "@shared/schema";
 import { db } from "./db";
 import {
   users, tenants, workspaces, workspaceMemberships,
-  clients, projects, timeEntries, projectAssignments
+  clients, projects, timeEntries, projectAssignments,
+  groups, groupMembers, groupClientAssignments, groupProjectAssignments
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -85,6 +90,28 @@ export interface IStorage {
   getProjectAssignments(workspaceId: string, projectId: string): Promise<ProjectAssignment[]>;
   getUserAssignments(workspaceId: string, userId: string): Promise<ProjectAssignment[]>;
   removeUserFromProject(workspaceId: string, userId: string, projectId: string): Promise<boolean>;
+
+  // Groups
+  createGroup(group: InsertGroup): Promise<Group>;
+  getGroups(workspaceId: string): Promise<Group[]>;
+  getGroup(workspaceId: string, id: string): Promise<Group | undefined>;
+  updateGroup(workspaceId: string, id: string, group: Partial<InsertGroup>): Promise<Group | undefined>;
+  deleteGroup(workspaceId: string, id: string): Promise<boolean>;
+
+  // Group Members
+  addGroupMember(member: InsertGroupMember): Promise<GroupMember>;
+  getGroupMembers(workspaceId: string, groupId: string): Promise<GroupMember[]>;
+  removeGroupMember(workspaceId: string, groupId: string, userId: string): Promise<boolean>;
+
+  // Group-Client Assignments
+  assignGroupToClient(assignment: InsertGroupClientAssignment): Promise<GroupClientAssignment>;
+  getGroupClients(workspaceId: string, groupId: string): Promise<Client[]>;
+  removeGroupFromClient(workspaceId: string, groupId: string, clientId: string): Promise<boolean>;
+
+  // Group-Project Assignments
+  assignGroupToProject(assignment: InsertGroupProjectAssignment): Promise<GroupProjectAssignment>;
+  getGroupProjects(workspaceId: string, groupId: string): Promise<Project[]>;
+  removeGroupFromProject(workspaceId: string, groupId: string, projectId: string): Promise<boolean>;
 
   // Dashboard
   getDashboardMetrics(workspaceId: string): Promise<DashboardMetrics>;
@@ -457,6 +484,154 @@ export class DbStorage implements IStorage {
       activeProjects,
       utilizationRate,
     };
+  }
+
+  // Groups
+  async createGroup(group: InsertGroup): Promise<Group> {
+    const result = await db.insert(groups).values(group).returning();
+    return result[0];
+  }
+
+  async getGroups(workspaceId: string): Promise<Group[]> {
+    return await db
+      .select()
+      .from(groups)
+      .where(eq(groups.workspaceId, workspaceId))
+      .orderBy(desc(groups.createdAt));
+  }
+
+  async getGroup(workspaceId: string, id: string): Promise<Group | undefined> {
+    const result = await db
+      .select()
+      .from(groups)
+      .where(and(eq(groups.workspaceId, workspaceId), eq(groups.id, id)))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateGroup(workspaceId: string, id: string, group: Partial<InsertGroup>): Promise<Group | undefined> {
+    // Ensure workspaceId cannot be modified (defensive constraint)
+    const { workspaceId: _ignored, ...safeUpdate } = group;
+    
+    const result = await db
+      .update(groups)
+      .set(safeUpdate)
+      .where(and(eq(groups.workspaceId, workspaceId), eq(groups.id, id)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteGroup(workspaceId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(groups)
+      .where(and(eq(groups.workspaceId, workspaceId), eq(groups.id, id)))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Group Members
+  async addGroupMember(member: InsertGroupMember): Promise<GroupMember> {
+    const result = await db.insert(groupMembers).values(member).returning();
+    return result[0];
+  }
+
+  async getGroupMembers(workspaceId: string, groupId: string): Promise<GroupMember[]> {
+    return await db
+      .select()
+      .from(groupMembers)
+      .where(and(eq(groupMembers.workspaceId, workspaceId), eq(groupMembers.groupId, groupId)));
+  }
+
+  async removeGroupMember(workspaceId: string, groupId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(groupMembers)
+      .where(and(
+        eq(groupMembers.workspaceId, workspaceId),
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId)
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Group-Client Assignments
+  async assignGroupToClient(assignment: InsertGroupClientAssignment): Promise<GroupClientAssignment> {
+    const result = await db.insert(groupClientAssignments).values(assignment).returning();
+    return result[0];
+  }
+
+  async getGroupClients(workspaceId: string, groupId: string): Promise<Client[]> {
+    const assignments = await db
+      .select()
+      .from(groupClientAssignments)
+      .where(and(
+        eq(groupClientAssignments.workspaceId, workspaceId),
+        eq(groupClientAssignments.groupId, groupId)
+      ));
+
+    const clientIds = assignments.map(a => a.clientId);
+    if (clientIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(clients)
+      .where(and(
+        eq(clients.workspaceId, workspaceId),
+        // @ts-ignore - inArray is valid for varchar fields
+        clients.id.in(clientIds)
+      ));
+  }
+
+  async removeGroupFromClient(workspaceId: string, groupId: string, clientId: string): Promise<boolean> {
+    const result = await db
+      .delete(groupClientAssignments)
+      .where(and(
+        eq(groupClientAssignments.workspaceId, workspaceId),
+        eq(groupClientAssignments.groupId, groupId),
+        eq(groupClientAssignments.clientId, clientId)
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  // Group-Project Assignments
+  async assignGroupToProject(assignment: InsertGroupProjectAssignment): Promise<GroupProjectAssignment> {
+    const result = await db.insert(groupProjectAssignments).values(assignment).returning();
+    return result[0];
+  }
+
+  async getGroupProjects(workspaceId: string, groupId: string): Promise<Project[]> {
+    const assignments = await db
+      .select()
+      .from(groupProjectAssignments)
+      .where(and(
+        eq(groupProjectAssignments.workspaceId, workspaceId),
+        eq(groupProjectAssignments.groupId, groupId)
+      ));
+
+    const projectIds = assignments.map(a => a.projectId);
+    if (projectIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(projects)
+      .where(and(
+        eq(projects.workspaceId, workspaceId),
+        // @ts-ignore - inArray is valid for varchar fields
+        projects.id.in(projectIds)
+      ));
+  }
+
+  async removeGroupFromProject(workspaceId: string, groupId: string, projectId: string): Promise<boolean> {
+    const result = await db
+      .delete(groupProjectAssignments)
+      .where(and(
+        eq(groupProjectAssignments.workspaceId, workspaceId),
+        eq(groupProjectAssignments.groupId, groupId),
+        eq(groupProjectAssignments.projectId, projectId)
+      ))
+      .returning();
+    return result.length > 0;
   }
 }
 
