@@ -73,6 +73,16 @@ Preferred communication style: Simple, everyday language.
 - All tables use UUID primary keys via `gen_random_uuid()`
 - Composite indexes on workspace+status for efficient filtering
 
+**Database Initialization Wizard:**
+- Automatic database setup on server startup via `server/db-wizard.ts`
+- Checks for existing tables using information_schema queries
+- Auto-creates all tables if database is empty using `npm run db:push --force`
+- Automatically applies schema updates on existing databases
+- Verifies database connection with health check
+- Displays colored status messages during startup
+- Handles errors gracefully with actionable logging
+- Server waits for database initialization before accepting requests
+
 **Data Access Pattern:**
 - Storage interface abstraction with workspace context filtering
 - Database implementation using Drizzle ORM with complete data isolation
