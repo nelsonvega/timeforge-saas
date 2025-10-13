@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Group = {
   id: string;
@@ -39,18 +40,7 @@ export function GroupsTable() {
     enabled: !!selectedWorkspace?.id,
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Loading groups...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (groups.length === 0) {
+  if (groups.length === 0 && !isLoading) {
     return (
       <div className="text-center py-12 border rounded-lg" data-testid="empty-groups">
         <Users className="h-12 w-12 mx-auto text-muted-foreground/50" />
@@ -83,7 +73,29 @@ export function GroupsTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groups.map((group) => (
+          {isLoading ? (
+            <>
+              {[...Array(3)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-3 w-3 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                  <TableCell className="text-center text-muted-foreground">—</TableCell>
+                  <TableCell className="text-center text-muted-foreground">—</TableCell>
+                  <TableCell className="text-center text-muted-foreground">—</TableCell>
+                  <TableCell>
+                    <Skeleton className="h-9 w-9 rounded" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </>
+          ) : (
+            groups.map((group) => (
             <TableRow key={group.id} data-testid={`row-group-${group.id}`}>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
@@ -161,7 +173,8 @@ export function GroupsTable() {
                 </DropdownMenu>
               </TableCell>
             </TableRow>
-          ))}
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

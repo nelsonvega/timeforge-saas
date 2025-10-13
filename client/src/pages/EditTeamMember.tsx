@@ -18,6 +18,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User as UserType } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const roles = [
   "Developer",
@@ -90,8 +91,24 @@ export default function EditTeamMember() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="min-h-screen bg-background p-8 space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6 space-y-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }

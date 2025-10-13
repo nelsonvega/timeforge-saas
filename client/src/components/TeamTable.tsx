@@ -22,6 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { User, Project, Client, ProjectAssignment } from "@shared/schema";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { AddToGroupDialog } from "./AddToGroupDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function TeamTable() {
   const { selectedWorkspace } = useWorkspace();
@@ -74,10 +75,6 @@ export function TeamTable() {
       .filter(Boolean) as Client[];
   };
 
-  if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading team members...</div>;
-  }
-
   return (
     <div className="border rounded-lg">
       <Table>
@@ -93,7 +90,42 @@ export function TeamTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {team.length === 0 ? (
+          {isLoading ? (
+            <>
+              {[...Array(3)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Skeleton className="h-3 w-3 rounded" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                  </TableCell>
+                  <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-9 w-9 rounded" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </>
+          ) : team.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="text-center text-muted-foreground">
                 No team members yet. Add your first team member!
