@@ -5,8 +5,8 @@ A professional time tracking SaaS application designed for agencies, consulting 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 20+ 
-- PostgreSQL database (Neon serverless)
+- Node.js 20+
+- PostgreSQL database (local, network, or Neon serverless)
 
 ### Installation
 
@@ -149,6 +149,7 @@ See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing documentation.
 
 ## 📚 Documentation
 
+- [Database Setup Guide](docs/DATABASE_SETUP.md) - PostgreSQL configuration for local, network, and cloud
 - [Feature List](docs/FEATURES.md) - Complete list of features
 - [Implementation Details](docs/IMPLEMENTATION.md) - Technical implementation guide
 - [Testing Guide](docs/TESTING.md) - Testing strategy and examples
@@ -157,16 +158,16 @@ See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing documentation.
 
 ### Environment Variables
 
-Required environment variables:
+Required environment variables (see [Database Setup Guide](docs/DATABASE_SETUP.md) for detailed configuration):
 
 ```env
-# Database
-DATABASE_URL=postgresql://...
-PGHOST=...
-PGPORT=5432
-PGUSER=...
-PGPASSWORD=...
-PGDATABASE=...
+# Database (choose one configuration)
+# Local PostgreSQL:
+DATABASE_URL=postgresql://user:password@localhost:5432/FocusFlow
+# Network PostgreSQL:
+# DATABASE_URL=postgresql://user:password@192.168.1.100:5432/FocusFlow
+# Neon Serverless:
+# DATABASE_URL=postgresql://user:password@host.neon.tech/db?sslmode=require
 
 # Authentication
 SESSION_SECRET=your-secret-key
