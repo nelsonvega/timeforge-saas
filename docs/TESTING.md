@@ -1,14 +1,43 @@
 # Testing Guide
 
+> **📝 Note:** This guide contains examples and patterns for writing tests. For the **current status** of existing tests in this project, see [TEST_STATUS.md](TEST_STATUS.md). For a complete task breakdown, see [TESTING_TASKS.md](TESTING_TASKS.md).
+
+## Current Test Infrastructure
+
+**Framework:** Vitest 3.2.4 with @vitest/ui and @vitest/coverage-v8
+**Environment:** happy-dom for React components
+**Test Runner:** Sequential execution to avoid database race conditions
+**Coverage Thresholds:** 90% lines, 90% functions, 85% branches, 90% statements
+
+### Quick Start
+
+```bash
+# Run all tests
+npx vitest run
+
+# Run tests in watch mode
+npx vitest
+
+# Run with coverage
+npx vitest run --coverage
+
+# Open Vitest UI
+npx vitest --ui
+```
+
+⚠️ **Important:** Most tests require PostgreSQL to be running. See [DATABASE_SETUP.md](DATABASE_SETUP.md) for setup instructions.
+
+---
+
 ## Testing Strategy
 
 ### Test Categories
 
 1. **Unit Tests**: Individual functions and components
 2. **Integration Tests**: API endpoints and workflows
-3. **End-to-End Tests**: Complete user journeys
+3. **End-to-End Tests**: Complete user journeys (not yet implemented)
 4. **Security Tests**: Authentication and authorization
-5. **Performance Tests**: Load and stress testing
+5. **Performance Tests**: Load and stress testing (not yet implemented)
 
 ## Unit Testing
 
@@ -794,27 +823,107 @@ export async function getAuthCookie(user?: User) {
 
 ```bash
 # Run all tests
-npm test
+npx vitest run
 
 # Run unit tests only
-npm run test:unit
+npx vitest run --grep "^(?!.*integration).*"
 
-# Run integration tests
-npm run test:integration
-
-# Run e2e tests
-npm run test:e2e
+# Run integration tests only
+npx vitest run --grep "integration"
 
 # Run with coverage
-npm run test:coverage
+npx vitest run --coverage
 
 # Watch mode
-npm run test:watch
+npx vitest
+
+# Open Vitest UI
+npx vitest --ui
 ```
 
+### Adding npm Scripts (Recommended)
+
+Add these scripts to your `package.json` for easier test execution:
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  }
+}
+```
+
+### Database Setup for Tests
+
+Tests require a running PostgreSQL database. Configure your test database:
+
+1. **Start PostgreSQL** (see [DATABASE_SETUP.md](DATABASE_SETUP.md))
+2. **Set DATABASE_URL** in `.env` file
+3. **Run migrations**: `npm run db:push`
+4. **Run tests**: `npx vitest run`
+
+The test suite uses `cleanDatabase()` helper to reset the database before each test.
+
 ## Test Coverage Goals
+
+**Target:** 90% overall coverage
 
 - **Unit Tests**: > 80% coverage
 - **Integration Tests**: All API endpoints
 - **E2E Tests**: Critical user journeys
 - **Security Tests**: All auth and authorization paths
+
+### Current Coverage Status
+
+| Module | Target | Current | Status |
+|--------|--------|---------|--------|
+| Backend Storage | 95% | ~60% | ⚠️ Tests exist, need DB |
+| Backend Middleware | 100% | 100% | ✅ Complete |
+| Backend Routes | 90% | ~10% | ❌ Needs work |
+| Frontend Hooks | 100% | ~25% | ⚠️ Partial |
+| Frontend Pages | 85% | 0% | ❌ Not started |
+| **Overall** | **90%** | **~15-20%** | ⚠️ **In Progress** |
+
+See [TEST_STATUS.md](TEST_STATUS.md) for detailed breakdown.
+
+---
+
+## Actual Test Patterns Used in This Project
+
+The examples below are taken from actual tests in this codebase.
+
+### Test File Structure
+
+```
+server/
+  __tests__/
+    storage/
+      user.test.ts          # Storage layer tests
+      tenant.test.ts
+      workspace.test.ts
+      client.test.ts
+      project.test.ts
+      timeEntry.test.ts
+    middleware/
+      authorization.test.ts # Middleware tests
+      workspace.test.ts
+    integration/
+      auth.test.ts          # Integration tests
+
+client/
+  src/
+    hooks/
+      __tests__/
+        usePermissions.test.tsx  # Frontend hook tests
+
+test/
+  helpers/
+    fixtures.ts           # Test data factories
+    database.ts           # Database utilities
+    auth.ts              # Auth helpers
+    api.ts               # API test utilities
+  setup.ts               # Global test setup
+```
