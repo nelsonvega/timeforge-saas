@@ -20,7 +20,19 @@ describe('usePermissions', () => {
   const createWrapper = () => {
     const queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false },
+        queries: {
+          retry: false,
+          queryFn: async ({ queryKey }) => {
+            const url = queryKey[0] as string;
+            const res = await fetch(url, {
+              credentials: "include",
+            });
+            if (!res.ok) {
+              throw new Error(`${res.status}: ${res.statusText}`);
+            }
+            return await res.json();
+          },
+        },
       },
     });
 

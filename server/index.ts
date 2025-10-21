@@ -1,78 +1,85 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./db-wizard";
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-app.use((req, res, next) => {
+// Middleware to log API responses
+function logApiMiddleware(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedResponse: Record<string, any> | undefined;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  const originalJson = res.json.bind(res);
+  res.json = (body, ...args) => {
+    capturedResponse = body;
+    return originalJson(body, ...args);
   };
 
   res.on("finish", () => {
+    if (!path.startsWith("/api")) return;
+
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+    let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+    if (capturedResponse) {
+      const serialized = JSON.stringify(capturedResponse);
+      logLine += ` :: ${serialized}`;
     }
+
+    if (logLine.length > 80) {
+      logLine = logLine.slice(0, 79) + "…";
+    }
+
+    log(logLine);
   });
 
   next();
-});
+}
 
+// Error handling middleware
+function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.status(status).json({ message });
+  throw err;
+}
+
+const app = express();
+
+// Core middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(logApiMiddleware);
+
+// App startup logic
 (async () => {
-  // Initialize database before starting server
-  await initializeDatabase();
+  try {
+    await initializeDatabase();
+  } catch (error) {
+    console.error('\x1b[33m⚠️  Warning: Could not initialize database. Server will start without database connection.\x1b[0m');
+    console.error('\x1b[33m   Please ensure PostgreSQL is running and DATABASE_URL is correct.\x1b[0m\n');
+  }
 
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  app.use(errorHandler);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+  const isDev = app.get("env") === "development";
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (isDev) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  const host = process.env.HOST || 'localhost';
+
+  server.listen(port, host, () => {
+    log(`Serving on http://${host}:${port}`);
   });
 })();
