@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { insertClientSchema, insertProjectSchema, insertUserSchema, insertTimeEntrySchema, updateTimeEntrySchema, insertProjectAssignmentSchema, insertWorkspaceSchema, insertWorkspaceMembershipSchema, insertGroupSchema, insertGroupMemberSchema, insertGroupClientAssignmentSchema, insertGroupProjectAssignmentSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { requireRole } from "./middleware/authorization";
 import { requireWorkspace } from "./middleware/workspace";
 

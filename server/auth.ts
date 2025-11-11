@@ -1,30 +1,15 @@
-import * as client from "openid-client";
-import { Strategy, type VerifyFunction } from "openid-client/passport";
 import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import bcrypt from "bcrypt";
 
 import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import MemoryStore from "memorystore";
 import { storage } from "./storage";
-import { pool } from "./db";
-
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
-
-const getOidcConfig = memoize(
-  async () => {
-    return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
-    );
-  },
-  { maxAge: 3600 * 1000 }
-);
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 export async function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -32,10 +17,13 @@ export async function getSession() {
 
   // Try to use PostgreSQL store, fall back to memory store if DB not available
   try {
-    await pool.query('SELECT 1'); // Test database connection
+    // Test database connection using drizzle
+    await db.execute(sql`SELECT 1`);
     const pgStore = connectPg(session);
     sessionStore = new pgStore({
-      conString: process.env.DATABASE_URL,
+      conObject: {
+        connectionString: process.env.DATABASE_URL,
+      },
       createTableIfMissing: false,
       ttl: sessionTtl / 1000, // PostgreSQL store uses seconds
       tableName: "sessions",
@@ -63,15 +51,6 @@ export async function getSession() {
   });
 }
 
-function updateUserSession(
-  user: any,
-  tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers
-) {
-  user.claims = tokens.claims();
-  user.access_token = tokens.access_token;
-  user.refresh_token = tokens.refresh_token;
-  user.expires_at = user.claims?.exp;
-}
 
 async function createUserWithTenantAndWorkspace(userData: {
   id: string;
@@ -114,15 +93,6 @@ async function createUserWithTenantAndWorkspace(userData: {
   }
 }
 
-async function upsertUser(claims: any) {
-  await createUserWithTenantAndWorkspace({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-  });
-}
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
@@ -136,13 +106,13 @@ export async function setupAuth(app: Express) {
     async (email, password, done) => {
       try {
         const user = await storage.getUserByEmail(email);
-        
+
         if (!user || !user.password) {
           return done(null, false, { message: 'Invalid email or password' });
         }
 
         const isValidPassword = await bcrypt.compare(password, user.password);
-        
+
         if (!isValidPassword) {
           return done(null, false, { message: 'Invalid email or password' });
         }
@@ -164,30 +134,79 @@ export async function setupAuth(app: Express) {
     }
   ));
 
-  const config = await getOidcConfig();
-
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
-
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy(
       {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback",
       },
-      verify,
-    );
-    passport.use(strategy);
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Extract user data from Google profile
+          const email = profile.emails?.[0]?.value;
+          const firstName = profile.name?.givenName || '';
+          const lastName = profile.name?.familyName || '';
+          const profileImageUrl = profile.photos?.[0]?.value;
+
+          if (!email) {
+            return done(new Error('No email found in Google profile'));
+          }
+
+          // Check if user already exists by email (from local registration)
+          let existingUser = await storage.getUserByEmail(email);
+
+          if (existingUser) {
+            // User exists with this email - link Google account to existing user
+            // Update profile image if not set
+            if (!existingUser.profileImageUrl && profileImageUrl) {
+              await storage.updateUser(existingUser.id, {
+                profileImageUrl,
+              });
+              existingUser.profileImageUrl = profileImageUrl;
+            }
+
+            // Create session user object using existing user's ID
+            const sessionUser = {
+              id: existingUser.id,
+              email: existingUser.email,
+              name: existingUser.name || `${existingUser.firstName} ${existingUser.lastName}`,
+              profileImageUrl: existingUser.profileImageUrl,
+              isGoogleAuth: true,
+              accessToken,
+              refreshToken,
+            };
+
+            return done(null, sessionUser);
+          }
+
+          // New user - create user with tenant and workspace
+          await createUserWithTenantAndWorkspace({
+            id: profile.id,
+            email,
+            firstName,
+            lastName,
+            profileImageUrl,
+          });
+
+          // Create session user object for Google auth
+          const sessionUser = {
+            id: profile.id,
+            email,
+            name: `${firstName} ${lastName}`,
+            profileImageUrl,
+            isGoogleAuth: true,
+            accessToken,
+            refreshToken,
+          };
+
+          return done(null, sessionUser);
+        } catch (error) {
+          return done(error as Error);
+        }
+      }
+    ));
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -195,24 +214,45 @@ export async function setupAuth(app: Express) {
 
   // Local auth endpoints
   app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate('local', (err: any, user: any, info: any) => {
+    passport.authenticate('local', async (err: any, user: any, info: any) => {
       if (err) {
         return res.status(500).json({ error: 'Authentication error' });
       }
       if (!user) {
         return res.status(401).json({ error: info?.message || 'Invalid credentials' });
       }
-      req.logIn(user, (err) => {
+
+      req.logIn(user, async (err) => {
         if (err) {
           return res.status(500).json({ error: 'Login error' });
         }
-        return res.json({ success: true, user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          profileImageUrl: user.profileImageUrl,
-          role: user.role,
-        }});
+
+        // Check workspace memberships
+        const workspaces = await storage.getUserWorkspaces(user.id);
+
+        if (workspaces.length === 0) {
+          return res.status(403).json({
+            error: 'No workspace access',
+            message: 'User is not a member of any workspace'
+          });
+        }
+
+        return res.json({
+          success: true,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            profileImageUrl: user.profileImageUrl,
+            role: user.role,
+          },
+          workspaces: workspaces.map(w => ({
+            id: w.id,
+            name: w.name,
+            slug: w.slug,
+          })),
+          requiresWorkspaceSelection: workspaces.length > 1,
+        });
       });
     })(req, res, next);
   });
@@ -278,8 +318,8 @@ export async function setupAuth(app: Express) {
         if (err) {
           return res.status(500).json({ error: 'Login error after registration' });
         }
-        res.status(201).json({ 
-          success: true, 
+        res.status(201).json({
+          success: true,
           user: {
             id: user.id,
             email: user.email,
@@ -291,6 +331,12 @@ export async function setupAuth(app: Express) {
             id: tenant.id,
             plan: tenant.plan,
           },
+          workspaces: [{
+            id: workspace.id,
+            name: workspace.name,
+            slug: workspace.slug,
+          }],
+          requiresWorkspaceSelection: false, // New user always has only one workspace
           selectedPlan: plan, // Return the plan they selected for payment flow
         });
       });
@@ -299,37 +345,51 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // OAuth endpoints
-  app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
+  // Google OAuth endpoints
+  app.get("/api/auth/google", (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(400).json({ error: "Google OAuth not configured" });
+    }
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
     })(req, res, next);
   });
 
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+  app.get("/api/auth/google/callback", (req, res, next) => {
+    passport.authenticate("google", async (err: any, user: any) => {
+      if (err || !user) {
+        return res.redirect("/login?error=google_auth_failed");
+      }
+
+      req.logIn(user, async (loginErr) => {
+        if (loginErr) {
+          return res.redirect("/login?error=login_failed");
+        }
+
+        // Check workspace memberships
+        const workspaces = await storage.getUserWorkspaces(user.id);
+
+        if (workspaces.length === 0) {
+          req.logout(() => {
+            res.redirect("/login?error=no_workspace");
+          });
+          return;
+        }
+
+        // If multiple workspaces, redirect to workspace selector
+        if (workspaces.length > 1) {
+          return res.redirect("/select-workspace");
+        }
+
+        // Single workspace - redirect to dashboard
+        return res.redirect("/");
+      });
     })(req, res, next);
   });
 
   app.get("/api/logout", (req, res) => {
-    const isLocalAuth = (req.user as any)?.isLocalAuth;
-    
     req.logout(() => {
-      if (isLocalAuth) {
-        // Local auth - just redirect to login
-        res.redirect("/login");
-      } else {
-        // OAuth - redirect to OIDC logout
-        res.redirect(
-          client.buildEndSessionUrl(config, {
-            client_id: process.env.REPL_ID!,
-            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-          }).href
-        );
-      }
+      res.redirect("/login");
     });
   });
 }
@@ -345,7 +405,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (sessionUser.isLocalAuth) {
     try {
       const fullUser = await storage.getUser(sessionUser.id);
-      
+
       if (!fullUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -355,7 +415,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       sessionUser.email = fullUser.email;
       sessionUser.name = fullUser.name;
       sessionUser.profileImageUrl = fullUser.profileImageUrl;
-      
+
       return next();
     } catch (error) {
       res.status(401).json({ message: "Unauthorized" });
@@ -363,46 +423,28 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     }
   }
 
-  // Handle OAuth
-  if (!sessionUser.expires_at) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  if (now > sessionUser.expires_at) {
-    const refreshToken = sessionUser.refresh_token;
-    if (!refreshToken) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
+  // Handle Google OAuth
+  if (sessionUser.isGoogleAuth) {
     try {
-      const config = await getOidcConfig();
-      const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-      updateUserSession(sessionUser, tokenResponse);
+      const fullUser = await storage.getUser(sessionUser.id);
+
+      if (!fullUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      sessionUser.role = fullUser.role;
+      sessionUser.id = fullUser.id;
+      sessionUser.email = fullUser.email;
+      sessionUser.name = fullUser.name;
+      sessionUser.profileImageUrl = fullUser.profileImageUrl;
+
+      return next();
     } catch (error) {
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
   }
 
-  try {
-    const userId = sessionUser.claims.sub;
-    const fullUser = await storage.getUser(userId);
-    
-    if (!fullUser) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    sessionUser.role = fullUser.role;
-    sessionUser.id = fullUser.id;
-    sessionUser.email = fullUser.email;
-    sessionUser.name = fullUser.name;
-    sessionUser.profileImageUrl = fullUser.profileImageUrl;
-    
-    return next();
-  } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
+  // Unknown auth type
+  return res.status(401).json({ message: "Unauthorized" });
 };

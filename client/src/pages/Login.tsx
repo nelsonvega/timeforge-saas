@@ -112,7 +112,7 @@ export default function Login() {
   });
 
   const handleGoogleLogin = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/api/auth/google";
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -120,8 +120,26 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await apiRequest("POST", "/api/auth/login", loginData);
-      window.location.href = "/";
+      const response: any = await apiRequest("POST", "/api/auth/login", loginData);
+
+      // Handle workspace selection
+      if (response.workspaces && response.workspaces.length > 0) {
+        if (response.requiresWorkspaceSelection) {
+          // Multiple workspaces - redirect to selector
+          window.location.href = "/select-workspace";
+        } else {
+          // Single workspace - save and redirect to dashboard
+          localStorage.setItem('selectedWorkspaceId', response.workspaces[0].id);
+          window.location.href = "/";
+        }
+      } else {
+        // No workspaces
+        toast({
+          title: "No workspace access",
+          description: "You don't have access to any workspace",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -163,15 +181,20 @@ export default function Login() {
       const { confirmPassword, ...dataToSend } = registerData;
       const response: any = await apiRequest("POST", "/api/auth/register", dataToSend);
       
+      // Save workspace ID (new users always have one workspace)
+      if (response.workspaces && response.workspaces.length > 0) {
+        localStorage.setItem('selectedWorkspaceId', response.workspaces[0].id);
+      }
+
       // If paid plan selected, show payment form
       if (response.selectedPlan === "paid") {
         setPendingTenantId(response.tenant.id);
-        
+
         // Create payment intent (userId is derived from authenticated session on backend)
         const paymentResponse: any = await apiRequest("POST", "/api/create-payment-intent", {
           tenantId: response.tenant.id,
         });
-        
+
         setClientSecret(paymentResponse.clientSecret);
         setShowPayment(true);
       } else {

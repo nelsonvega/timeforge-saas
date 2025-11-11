@@ -68,7 +68,7 @@ When modifying database connection logic, maintain this dual-driver pattern.
 
 ### Session Store Fallback
 
-Sessions use PostgreSQL by default but automatically fall back to in-memory storage if database is unavailable (`server/replitAuth.ts:29-64`). This allows development without database setup but sessions won't persist across server restarts.
+Sessions use PostgreSQL by default but automatically fall back to in-memory storage if database is unavailable (`server/auth.ts`). This allows development without database setup but sessions won't persist across server restarts.
 
 **When modifying auth:**
 - Never remove the fallback mechanism
@@ -115,14 +115,14 @@ Two completely different auth flows exist side-by-side:
 - Password validation via bcrypt
 - Direct database user lookup
 
-**OAuth (Replit/Google):**
-- Session user: `{ claims, access_token, refresh_token, expires_at }`
-- Token refresh on expiration
-- User upserted from OIDC claims
+**Google OAuth:**
+- Session user: `{ id, email, name, profileImageUrl, isGoogleAuth: true, accessToken, refreshToken }`
+- User linked to existing account by email or created as new user
+- Automatic tenant and workspace creation for new users
 
 **When modifying auth middleware (`isAuthenticated`):**
-- Check `sessionUser.isLocalAuth` to determine strategy
-- Handle both paths through to `next()`
+- Check `sessionUser.isLocalAuth` or `sessionUser.isGoogleAuth` to determine strategy
+- Handle both authentication types
 - Never assume one auth type
 
 ### Payment Flow State Machine
@@ -291,7 +291,7 @@ See `docs/DATABASE_SETUP.md` for detailed configuration including SSL, connectio
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Cryptographically random string for session encryption
 - `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY` - Payment processing (optional for free-only)
-- `REPL_ID`, `ISSUER_URL`, `REPLIT_DOMAINS` - OAuth configuration (optional if only using local auth)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` - Google OAuth configuration (optional)
 
 ### Development vs Production
 - Cookie `secure` flag: false in development, true in production
@@ -303,7 +303,7 @@ See `docs/DATABASE_SETUP.md` for detailed configuration including SSL, connectio
 ### Backend (`server/`)
 - `index.ts` - Express app initialization, middleware setup
 - `routes.ts` - All API endpoints and middleware composition
-- `replitAuth.ts` - Passport strategies (local + OAuth), session config
+- `auth.ts` - Passport strategies (local + Google OAuth), session config
 - `storage.ts` - Data access layer (implements IStorage interface)
 - `db.ts` - Database connection with driver detection
 - `middleware/` - Reusable route middleware (workspace, authorization)

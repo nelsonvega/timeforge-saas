@@ -28,6 +28,7 @@ import ReportDetail from "@/pages/ReportDetail";
 import TimeSummaryReport from "@/pages/TimeSummaryReport";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
+import SelectWorkspace from "@/pages/SelectWorkspace";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ 
@@ -50,6 +51,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/select-workspace" component={SelectWorkspace} />
       <Route path="/">
         {() => <ProtectedRoute component={Dashboard} permission="canAccessDashboard" />}
       </Route>
@@ -103,6 +105,7 @@ function AppContent() {
   const [location] = useLocation();
   const { isAuthenticated, isLoading, canAccessDashboard } = usePermissions();
   const isLoginPage = location === "/login";
+  const isWorkspaceSelectorPage = location === "/select-workspace";
 
   if (isLoading) {
     return (
@@ -128,7 +131,7 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
-  if (isLoginPage) {
+  if (isLoginPage || isWorkspaceSelectorPage) {
     return (
       <>
         <Router />
