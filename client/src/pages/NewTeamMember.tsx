@@ -260,32 +260,40 @@ export default function NewTeamMember() {
           </Card>
 
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                   <DollarSign className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Label htmlFor="hourly-rate" className="text-base font-semibold">
-                        Hourly Rate
-                      </Label>
-                      <Badge variant="secondary" className="text-xs">Optional</Badge>
-                    </div>
-                    <Input
-                      id="hourly-rate"
-                      type="number"
-                      placeholder="75.00"
-                      value={hourlyRate}
-                      onChange={(e) => setHourlyRate(e.target.value)}
-                      data-testid="input-member-rate"
-                      className="text-base ml-14"
-                    />
-                    <p className="text-sm text-muted-foreground mt-2 ml-14">
-                      Set the billable rate for this team member
-                    </p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Label className="text-base font-semibold">
+                      Hourly Rate
+                    </Label>
+                    <Badge variant="secondary" className="text-xs">Optional</Badge>
                   </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set the billable rate for this team member
+                  </p>
+                </div>
+              </div>
+
+              <div className="ml-14 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hourly-rate">Hourly Rate (USD)</Label>
+                  <Input
+                    id="hourly-rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="75.00"
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)}
+                    data-testid="input-member-rate"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the hourly rate in dollars (e.g., 75.00)
+                  </p>
                 </div>
               </div>
             </CardContent>
